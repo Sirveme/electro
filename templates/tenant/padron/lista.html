@@ -5,7 +5,9 @@
   <div class="page-header">
     <h1 class="page-title">Padrón ({{ total }})</h1>
     {% if ctx.user | puede('padron', 'viviendas', 'crear') %}
-      <a href="/app/padron/nuevo" class="btn btn--primary">+ Nueva vivienda</a>
+      <button type="button" class="btn btn--primary" disabled title="Disponible en zClaude-02">
+        + Nueva vivienda <small>(pendiente)</small>
+      </button>
     {% endif %}
   </div>
 
