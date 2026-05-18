@@ -6,8 +6,9 @@
   <meta name="color-scheme" content="dark">
   <title>{% block title %}electro{% endblock %} · Perú Sistemas</title>
 
+  <link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg">
+
   <!-- Preload de estáticos críticos -->
-  <link rel="preload" href="/static/css/tokens.css?v=1" as="style">
   <link rel="preload" href="/static/css/base.css?v=1" as="style">
   <link rel="preload" href="/static/js/htmx.min.js?v=1.9.12" as="script">
 
@@ -22,14 +23,9 @@
   <script src="/static/js/_hyperscript.min.js?v=0.9.13" defer></script>
   <script src="/static/js/password_toggle.js?v=1" defer></script>
   <script src="/static/js/connection.js?v=1" defer></script>
+  <script src="/static/js/kebab_close.js?v=1" defer></script>
 </head>
-<body hx-boost="true"
-      _="on click from elsewhere(.kebab-menu)
-           for menu in .kebab-menu
-             if not menu.parentElement.contains(event.target)
-               remove .open from menu
-             end
-           end">
+<body hx-boost="true">
 
   {% if ctx and ctx.user %}
   <header class="topbar">
