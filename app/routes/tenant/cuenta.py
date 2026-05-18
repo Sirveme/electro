@@ -82,7 +82,7 @@ async def submit(
         await ts.execute(
             text(
                 "UPDATE usuarios "
-                "SET access_code = :h, debe_cambiar_clave = FALSE, updated_at = NOW() "
+                "SET access_code = :h, debe_cambiar_clave = FALSE "
                 "WHERE id = :id"
             ),
             {"h": nuevo_hash, "id": user.user_id},
