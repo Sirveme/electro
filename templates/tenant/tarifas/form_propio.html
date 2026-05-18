@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block title %}Nuevo artefacto propio{% endblock %}
+{% block content %}
+<section class="page">
+  <h1 class="page-title">Nuevo artefacto propio</h1>
+  <p class="page-subtitle">
+    Estos artefactos solo existen en tu municipio. Para los del catálogo público,
+    edita su tarifa directamente desde la lista.
+  </p>
+
+  <form method="post" action="/app/tarifas/propio/nuevo" class="form" hx-boost="false">
+    {% include 'components/csrf_input.html' %}
+
+    <div class="form-row">
+      <label class="form-field">
+        <span class="form-label">Código (corto, sin espacios)</span>
+        <input type="text" name="codigo" required maxlength="30"
+               value="{{ form.codigo or '' }}"
+               pattern="[A-Za-z0-9_-]+" placeholder="ej. EXTRACTOR">
+      </label>
+      <label class="form-field">
+        <span class="form-label">Tarifa mensual (S/.)</span>
+        <input type="number" name="tarifa" required step="0.01" min="0"
+               value="{{ form.tarifa or '' }}">
+      </label>
+    </div>
+
+    <label class="form-field">
+      <span class="form-label">Nombre</span>
+      <input type="text" name="nombre" required maxlength="80"
+             value="{{ form.nombre or '' }}">
+    </label>
+
+    <label class="form-field">
+      <span class="form-label">Categoría</span>
+      <select name="categoria" required>
+        {% set cats = ['refrigeracion','coccion','iluminacion','entretenimiento',
+                       'climatizacion','lavado','herramientas','otros'] %}
+        {% for c in cats %}
+          <option value="{{ c }}" {% if form.categoria == c %}selected{% endif %}>{{ c }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label class="form-field">
+      <input type="checkbox" name="habilitado" {% if form.habilitado != 'off' %}checked{% endif %}>
+      Habilitado (aparece en el wizard de empadronamiento)
+    </label>
+
+    <div class="form-actions">
+      <a href="/app/tarifas/" class="btn btn--ghost">Cancelar</a>
+      <button type="submit" class="btn btn--primary">Crear artefacto</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

@@ -1,0 +1,39 @@
+{# Fragmento de una fila de tarifa. Reutilizable como respuesta HTMX. #}
+<tr class="tarifa-row tarifa-row--{{ 'on' if item.habilitado else 'off' }}"
+    data-codigo="{{ item.codigo }}" data-origen="{{ item.origen }}">
+  <td><code>{{ item.codigo }}</code></td>
+  <td>
+    {% if item.icono %}<span class="tarifa-icono" aria-hidden="true">{{ item.icono }}</span>{% endif %}
+    {{ item.nombre }}
+  </td>
+  <td class="muted">{{ item.categoria }}</td>
+  <td>
+    <form hx-post="/app/tarifas/{{ item.origen }}/{{ item.codigo }}/tarifa"
+          hx-target="closest tr" hx-swap="outerHTML"
+          class="tarifa-inline-form">
+      {% include 'components/csrf_input.html' %}
+      <input type="number" name="tarifa" step="0.01" min="0"
+             value="{{ '%.2f' | format(item.tarifa or 0) }}"
+             _="on blur if my value != my dataset.original then send submit to closest form end"
+             data-original="{{ '%.2f' | format(item.tarifa or 0) }}">
+    </form>
+  </td>
+  <td>
+    <form hx-post="/app/tarifas/{{ item.origen }}/{{ item.codigo }}/toggle"
+          hx-target="closest tr" hx-swap="outerHTML"
+          class="tarifa-toggle-form">
+      {% include 'components/csrf_input.html' %}
+      <button type="submit" class="toggle-switch {{ 'is-on' if item.habilitado else 'is-off' }}"
+              aria-label="{{ 'Deshabilitar' if item.habilitado else 'Habilitar' }}">
+        <span class="toggle-knob"></span>
+      </button>
+    </form>
+  </td>
+  <td>
+    {% if item.origen == 'propio' %}
+      <span class="badge badge--info">propio</span>
+    {% else %}
+      <span class="muted small">catálogo</span>
+    {% endif %}
+  </td>
+</tr>

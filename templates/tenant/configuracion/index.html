@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% block title %}Configuración general{% endblock %}
+{% block content %}
+<section class="page">
+  <h1 class="page-title">Configuración general</h1>
+  <p class="page-subtitle">
+    Define cómo se calcula el monto base del recibo mensual.
+    El total final = cargo fijo + Σ(cantidad × tarifa) + (cantidad de moradores × adicional).
+  </p>
+
+  <form method="post" action="/app/configuracion" class="form" hx-boost="false">
+    {% include 'components/csrf_input.html' %}
+
+    <div class="form-row">
+      <label class="form-field">
+        <span class="form-label">Cargo fijo mensual (S/.)</span>
+        <input type="number" name="cargo_fijo_mensual" required step="0.01" min="0"
+               value="{{ '%.2f' | format(config.cargo_fijo_mensual or 0) }}">
+        <small class="form-hint">Se aplica a TODA vivienda activa, sin importar inventario.</small>
+      </label>
+      <label class="form-field">
+        <span class="form-label">Adicional por morador (S/.)</span>
+        <input type="number" name="adicional_por_morador" required step="0.01" min="0"
+               value="{{ '%.2f' | format(config.adicional_por_morador or 0) }}">
+        <small class="form-hint">Monto extra que se suma por cada morador activo.</small>
+      </label>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn--primary">Guardar configuración</button>
+    </div>
+  </form>
+</section>
+{% endblock %}
