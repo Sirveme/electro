@@ -19,7 +19,7 @@
 
     {% include 'components/flash_messages.html' ignore missing %}
 
-    <form method="post" action="/app/cuenta/cambiar-clave" class="form" autocomplete="off">
+    <form method="post" action="/app/cuenta/cambiar-clave" class="form" autocomplete="off" class="form" hx-boost="false">
       {% include 'components/csrf_input.html' %}
 
       <div class="form-field">
