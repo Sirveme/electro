@@ -12,7 +12,7 @@
   <form method="post" action="/sa/municipios/nuevo" class="form form--wizard" id="wizard-form">
     {% include 'components/csrf_input.html' %}
 
-    <fieldset class="wizard-step wizard-step--active" data-step="1">
+    <fieldset class="wizard-step wizard-step--active" id="step-1">
       <legend>1. Datos del municipio</legend>
       <label class="form-field">
         <span class="form-label">UBIGEO (6 dígitos)</span>
@@ -40,14 +40,16 @@
       <div class="wizard-actions">
         <button type="button" class="btn btn--primary"
           _="on click
-              hide closest <fieldset/>
-              then remove .wizard-step--active from closest <fieldset/>
-              then add .wizard-step--active to next <fieldset/>
-              then show next <fieldset/>">Siguiente</button>
+              hide #step-1
+              then show #step-2
+              then remove .wizard-step--active from #step-1
+              then add .wizard-step--active to #step-2">
+          Siguiente
+        </button>
       </div>
     </fieldset>
 
-    <fieldset class="wizard-step" data-step="2" style="display:none">
+    <fieldset class="wizard-step" id="step-2" style="display:none">
       <legend>2. Administrador del municipio</legend>
       <label class="form-field">
         <span class="form-label">DNI</span>
@@ -76,20 +78,24 @@
       <div class="wizard-actions">
         <button type="button" class="btn btn--ghost"
           _="on click
-              hide closest <fieldset/>
-              then remove .wizard-step--active from closest <fieldset/>
-              then add .wizard-step--active to previous <fieldset/>
-              then show previous <fieldset/>">Atrás</button>
+              hide #step-2
+              then show #step-1
+              then remove .wizard-step--active from #step-2
+              then add .wizard-step--active to #step-1">
+          Atrás
+        </button>
         <button type="button" class="btn btn--primary"
           _="on click
-              hide closest <fieldset/>
-              then remove .wizard-step--active from closest <fieldset/>
-              then add .wizard-step--active to next <fieldset/>
-              then show next <fieldset/>">Siguiente</button>
+              hide #step-2
+              then show #step-3
+              then remove .wizard-step--active from #step-2
+              then add .wizard-step--active to #step-3">
+          Siguiente
+        </button>
       </div>
     </fieldset>
 
-    <fieldset class="wizard-step" data-step="3" style="display:none">
+    <fieldset class="wizard-step" id="step-3" style="display:none">
       <legend>3. Plan y precio</legend>
       <label class="form-field">
         <span class="form-label">Plan</span>
@@ -106,10 +112,12 @@
       <div class="wizard-actions">
         <button type="button" class="btn btn--ghost"
           _="on click
-              hide closest <fieldset/>
-              then remove .wizard-step--active from closest <fieldset/>
-              then add .wizard-step--active to previous <fieldset/>
-              then show previous <fieldset/>">Atrás</button>
+              hide #step-3
+              then show #step-2
+              then remove .wizard-step--active from #step-3
+              then add .wizard-step--active to #step-2">
+          Atrás
+        </button>
         <button type="submit" class="btn btn--primary">Crear municipio</button>
       </div>
     </fieldset>
