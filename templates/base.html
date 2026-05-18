@@ -17,7 +17,7 @@
   <script src="/static/js/_hyperscript.min.js?v=0.9.13" defer></script>
   <script src="/static/js/modal.js" defer></script>
 </head>
-<body>
+<body hx-boost="true">
   {% if ctx and ctx.user %}
   <header class="topbar">
     <button class="menu-trigger" aria-label="Abrir menú"
