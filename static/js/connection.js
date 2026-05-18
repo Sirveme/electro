@@ -44,5 +44,5 @@
   window.addEventListener("offline", () => setState("offline", "sin conexión"));
 
   ping();
-  setInterval(ping, 30000);
+  setInterval(ping, 60000);  // 1 minuto en lugar de 30s
 })();
