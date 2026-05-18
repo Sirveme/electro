@@ -1,139 +1,208 @@
-/* =========================================================
-   base.css — variables, reset minimal, layout maestro
-   ========================================================= */
+/*
+ * electro — base.css
+ * Reset minimal + tipografía + layout base.
+ * Carga DESPUÉS de tokens.css.
+ */
 
-:root {
-  --color-primary: #0066cc;
-  --color-primary-dark: #004a99;
-  --color-success: #16a34a;
-  --color-danger: #dc2626;
-  --color-warning: #f59e0b;
-  --color-text: #1a1a1a;
-  --color-text-muted: #6b7280;
-  --color-bg: #ffffff;
-  --color-bg-soft: #f9fafb;
-  --color-border: #e5e7eb;
-  --radius: 8px;
-  --radius-sm: 4px;
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.15);
-  --topbar-height: 56px;
-  --side-menu-width: 280px;
-}
+@import url("/static/css/tokens.css?v=1");
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
-html, body {
+html {
+  height: 100%;
+  -webkit-text-size-adjust: 100%;
+  text-rendering: optimizeLegibility;
+}
+
+body {
   margin: 0;
-  padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
-    Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+  min-height: 100%;
+  font-family: var(--font-family);
   font-size: 15px;
-  line-height: 1.45;
-  color: var(--color-text);
-  background: var(--color-bg-soft);
+  line-height: 1.5;
+  background-color: var(--bg-base);
+  color: var(--text);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text-strong);
+  font-weight: 600;
+  line-height: 1.2;
+  margin: 0 0 var(--space-4) 0;
+}
+
+h1 { font-size: 1.75rem; }
+h2 { font-size: 1.35rem; }
+h3 { font-size: 1.15rem; }
+
+p {
+  margin: 0 0 var(--space-3) 0;
 }
 
 a {
-  color: var(--color-primary);
+  color: var(--primary-hover);
   text-decoration: none;
+  transition: color var(--transition-fast);
 }
-a:hover { text-decoration: underline; }
-
-h1, h2, h3, h4 {
-  margin: 0 0 0.5em;
-  line-height: 1.2;
-  font-weight: 600;
+a:hover {
+  color: var(--text-strong);
 }
 
-p { margin: 0 0 0.75em; }
-
-code, pre {
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+code, kbd, pre, samp {
+  font-family: var(--font-mono);
   font-size: 0.9em;
 }
+
+::selection {
+  background: var(--primary);
+  color: var(--primary-text-on);
+}
+
+.muted { color: var(--text-muted); }
+.faint { color: var(--text-faint); }
+.small { font-size: 0.85rem; }
+
+/* === Layout principal de la app === */
 
 .topbar {
   position: sticky;
   top: 0;
-  z-index: 50;
+  z-index: var(--z-menu);
   display: flex;
   align-items: center;
-  gap: 12px;
-  height: var(--topbar-height);
-  padding: 0 16px;
-  background: var(--color-bg);
-  border-bottom: 1px solid var(--color-border);
-  box-shadow: var(--shadow-sm);
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-base);
+  border-bottom: 1px solid var(--border);
+  height: 56px;
 }
 
-.menu-trigger {
+.topbar .menu-trigger {
   background: transparent;
-  border: 0;
-  padding: 8px;
+  border: none;
+  color: var(--text);
   cursor: pointer;
-  color: var(--color-text);
-  border-radius: var(--radius-sm);
+  padding: var(--space-2);
+  border-radius: var(--radius);
+  transition: background var(--transition-fast);
 }
-.menu-trigger:hover { background: var(--color-bg-soft); }
+.topbar .menu-trigger:hover {
+  background: var(--bg-surface);
+}
 
-.brand {
+.topbar .brand {
   font-weight: 700;
   font-size: 1.1rem;
-  color: var(--color-primary);
-  letter-spacing: -0.02em;
-}
-
-.topbar-spacer { flex: 1; }
-
-.ctx-user {
-  color: var(--color-text-muted);
-  font-size: 0.9rem;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.badge {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 0.7rem;
-  font-weight: 600;
-  text-transform: uppercase;
+  color: var(--text-strong);
   letter-spacing: 0.02em;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
 }
-.badge-superadmin { background: #f3e8ff; color: #6b21a8; }
-.badge-ok { background: #d1fae5; color: #065f46; }
-.badge-off { background: #fee2e2; color: #991b1b; }
 
-.logout-form { margin: 0; }
-.btn-link {
-  background: transparent;
-  border: 0;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  font-size: 0.9rem;
-  padding: 6px 10px;
-  border-radius: var(--radius-sm);
+.topbar .brand-bolt {
+  color: var(--accent);
 }
-.btn-link:hover { color: var(--color-danger); background: var(--color-bg-soft); }
+
+.topbar .spacer {
+  flex: 1;
+}
+
+.topbar .ctx {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
 
 .main-content {
-  max-width: 1100px;
+  padding: var(--space-5) var(--space-4);
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 24px 20px 80px;
+  background: var(--bg-soft);
+  min-height: calc(100vh - 56px);
 }
-.main-content--guest {
+
+@media (max-width: 600px) {
+  .main-content {
+    padding: var(--space-4) var(--space-3);
+  }
+}
+
+/* === Auth (login, cambiar clave) === */
+
+.auth-shell {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 100vh;
-  padding: 0;
+  min-height: calc(100vh - 56px);
+  padding: var(--space-5);
+  position: relative;
 }
 
-.muted { color: var(--color-text-muted); }
+.auth-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-lg);
+  position: relative;
+  z-index: 1;
+}
+
+.auth-title {
+  font-size: 1.5rem;
+  margin-bottom: var(--space-2);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.auth-title .bolt {
+  color: var(--accent);
+}
+
+.auth-subtitle {
+  color: var(--text-muted);
+  margin-bottom: var(--space-5);
+}
+
+/* === Rayos decorativos de fondo === */
+
+.bg-bolts {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.bg-bolts svg {
+  position: absolute;
+  opacity: 0.06;
+  fill: none;
+  stroke: var(--text-strong);
+  stroke-width: 2;
+}
+
+.bg-bolt-1 {
+  top: -40px;
+  right: -60px;
+  width: 280px;
+  transform: rotate(15deg);
+}
+
+.bg-bolt-2 {
+  bottom: -80px;
+  left: -40px;
+  width: 220px;
+  transform: rotate(-10deg);
+}
