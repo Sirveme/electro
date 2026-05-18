@@ -65,7 +65,7 @@ def ensure_csrf_cookie(request: Request, response: Response) -> str:
 
 async def verify_csrf(
     request: Request,
-    _csrf: str = Form(...),
+    _csrf: str = Form(..., alias="_csrf"),
 ) -> None:
     """
     Dependency para rutas POST/PUT/PATCH/DELETE.
