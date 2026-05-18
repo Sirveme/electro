@@ -1,0 +1,10 @@
+{% if flashes and flashes | length > 0 %}
+<div class="flash-stack">
+  {% for f in flashes %}
+    <div class="flash flash--{{ f.tipo or 'info' }}"
+      _="init wait 5s then transition opacity to 0 over 300ms then remove me">
+      {{ f.texto }}
+    </div>
+  {% endfor %}
+</div>
+{% endif %}

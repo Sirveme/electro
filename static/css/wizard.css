@@ -1,0 +1,63 @@
+/* Wizard de empadronamiento — progress indicator + gps + paso 4 inventario */
+
+.wizard-progress {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.wizard-progress-step {
+  flex: 1;
+  min-width: 130px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: var(--color-bg-soft);
+  color: var(--color-text-muted);
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 500;
+  border: 1px solid var(--color-border);
+}
+.wizard-progress-step--active {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+.wizard-progress-step--done {
+  background: #d1fae5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+
+.gps-field {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  background: var(--color-bg-soft);
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.gps-field legend {
+  padding: 0 6px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.dni-scanner-block {
+  padding: 16px;
+  background: var(--color-bg-soft);
+  border-radius: var(--radius);
+  border: 1px dashed var(--color-border);
+  margin-bottom: 18px;
+  text-align: center;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}

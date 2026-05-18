@@ -1,0 +1,85 @@
+/* =========================================================
+   menu.css — menú lateral deslizable
+   ========================================================= */
+
+.side-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: var(--side-menu-width);
+  background: var(--color-bg);
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.08);
+  transform: translateX(-100%);
+  transition: transform 200ms ease-out;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  padding-top: 0;
+}
+.side-menu.open { transform: translateX(0); }
+
+.side-menu-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-border);
+  height: var(--topbar-height);
+}
+.menu-close {
+  background: transparent;
+  border: 0;
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  padding: 0 6px;
+}
+.menu-close:hover { color: var(--color-text); }
+
+.side-menu-nav {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 0;
+  overflow-y: auto;
+}
+
+.menu-group-label {
+  padding: 16px 20px 6px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.menu-item {
+  display: block;
+  padding: 10px 20px;
+  color: var(--color-text);
+  text-decoration: none;
+  border-left: 3px solid transparent;
+  transition: background 100ms, border-color 100ms;
+  font-size: 0.95rem;
+}
+.menu-item:hover {
+  background: var(--color-bg-soft);
+  border-left-color: var(--color-primary);
+  text-decoration: none;
+}
+.menu-item--placeholder {
+  color: var(--color-text-muted);
+  cursor: default;
+  pointer-events: none;
+}
+.menu-item small { color: var(--color-text-muted); font-size: 0.75rem; margin-left: 4px; }
+
+.menu-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.25);
+  z-index: 99;
+}
+body.menu-open .menu-backdrop { display: block; }

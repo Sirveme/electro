@@ -1,0 +1,10 @@
+{# Fragmento HTMX para una tarjeta de morador. Usable como respuesta parcial. #}
+<div class="morador-card{% if morador.es_jefe_familia %} morador-card--jefe{% endif %}">
+  <div class="morador-card-head">
+    <strong>{{ morador.nombre_completo }}</strong>
+    {% if morador.es_jefe_familia %}<span class="badge badge-ok">Jefe de familia</span>{% endif %}
+    {% if morador.es_responsable_pago %}<span class="badge">Pago</span>{% endif %}
+  </div>
+  <div class="muted">DNI {{ morador.dni }}{% if morador.telefono %} · {{ morador.telefono }}{% endif %}</div>
+  {% if morador.acceso_portal %}<div class="muted">Tiene acceso al portal</div>{% endif %}
+</div>

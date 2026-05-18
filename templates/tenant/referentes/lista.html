@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block title %}Referentes{% endblock %}
+{% block content %}
+<section class="page">
+  <div class="page-header">
+    <h1 class="page-title">Referentes</h1>
+    {% if ctx.user | puede('padron', 'referentes', 'editar') %}
+      <a href="/app/referentes/nuevo" class="btn btn--primary">Nuevo referente</a>
+    {% endif %}
+  </div>
+
+  {% if referentes | length == 0 %}
+    <div class="empty-state"><p>Aún no hay referentes registrados.</p></div>
+  {% else %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr><th>Nombre</th><th>Cargo</th><th>DNI</th><th>Teléfono</th><th>Estado</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for r in referentes %}
+          <tr>
+            <td>{{ r.nombre_completo }}</td>
+            <td class="muted">{{ r.cargo }}</td>
+            <td>{{ r.dni or '—' }}</td>
+            <td>{{ r.telefono or '—' }}</td>
+            <td>
+              {% if r.activo %}<span class="badge badge-ok">Activo</span>{% else %}<span class="badge badge-off">Inactivo</span>{% endif %}
+            </td>
+            <td>
+              {% if ctx.user | puede('padron', 'referentes', 'editar') %}
+                <a href="/app/referentes/{{ r.id }}/editar" class="btn-link">Editar</a>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,13 @@
+{# Variante alert. Solo referencia. #}
+<div class="app-modal app-modal--{{ tipo or 'info' }}" role="alertdialog" aria-modal="true">
+  <div class="app-modal-backdrop" data-modal-close></div>
+  <div class="app-modal-window" tabindex="-1">
+    <header class="app-modal-header">
+      <h2 class="app-modal-title">{{ titulo }}</h2>
+    </header>
+    <div class="app-modal-body">{{ mensaje }}</div>
+    <footer class="app-modal-footer">
+      <button type="button" class="btn btn--primary" data-modal-ok>{{ ok_text or 'Entendido' }}</button>
+    </footer>
+  </div>
+</div>

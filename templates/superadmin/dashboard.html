@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block title %}Panel superadmin{% endblock %}
+{% block content %}
+<section class="page">
+  <h1 class="page-title">Hola, {{ ctx.user.nombre }}</h1>
+  <p class="page-subtitle">Panel de administración de la plataforma.</p>
+
+  <div class="metrics-row">
+    {% with label='Municipios activos', value=total_municipios_activos, hint='En todos los planes' %}
+      {% include 'components/card_metric.html' %}
+    {% endwith %}
+  </div>
+
+  <div class="primary-action">
+    <a href="/sa/municipios/nuevo" class="btn btn--primary btn--lg">Crear municipio</a>
+  </div>
+</section>
+{% endblock %}

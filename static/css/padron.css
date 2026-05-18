@@ -1,0 +1,185 @@
+/* Padrón: filtros, inventario wizard, ficha */
+
+.filters {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  align-items: center;
+}
+.filters select,
+.filters input[type="text"] {
+  padding: 8px 11px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  background: var(--color-bg);
+}
+.filters input[type="text"] { flex: 1; min-width: 200px; }
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+/* Inventario paso 4 */
+.filtro-input {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  margin: 14px 0 10px;
+  font: inherit;
+}
+.inv-list {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 18px;
+  max-height: 420px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 8px;
+  background: var(--color-bg-soft);
+}
+.inv-row {
+  display: grid;
+  grid-template-columns: 36px 1fr 80px;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--color-bg);
+  border-radius: var(--radius-sm);
+}
+.inv-icon { font-size: 1.4rem; text-align: center; }
+.inv-info strong { display: block; }
+.inv-info small { display: block; }
+.inv-cantidad {
+  width: 80px;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  text-align: center;
+  font: inherit;
+}
+
+.estimacion-box {
+  padding: 14px 18px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: var(--radius);
+  margin: 12px 0 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.estimacion-monto {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+/* Ficha */
+.ficha-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.ficha-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ficha-foto-mini {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+}
+.ficha-meta { color: var(--color-text); margin-bottom: 18px; }
+
+.moradores-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.morador-card {
+  padding: 12px 14px;
+  background: var(--color-bg-soft);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+.morador-card--jefe { border-left: 3px solid var(--color-primary); }
+.morador-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+/* Tabs */
+.tabs-header {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 12px;
+}
+.tabs-header button {
+  background: transparent;
+  border: 0;
+  padding: 10px 16px;
+  cursor: pointer;
+  font: inherit;
+  color: var(--color-text-muted);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.tabs-header button.tab-active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+  font-weight: 500;
+}
+.tab-panel-active { display: block; }
+
+/* Timeline eventos */
+.timeline {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.timeline li {
+  border-left: 2px solid var(--color-border);
+  padding: 6px 0 10px 14px;
+  margin-left: 6px;
+  position: relative;
+}
+.timeline li::before {
+  content: "";
+  position: absolute;
+  left: -5px;
+  top: 12px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-primary);
+}
+
+.flash-stack {
+  position: fixed;
+  top: 70px;
+  right: 24px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

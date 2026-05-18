@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block title %}Comunidades{% endblock %}
+{% block content %}
+<section class="page">
+  <div class="page-header">
+    <h1 class="page-title">Comunidades</h1>
+    {% if ctx.user | puede('padron', 'comunidades', 'editar') %}
+      <a href="/app/comunidades/nuevo" class="btn btn--primary">Nueva comunidad</a>
+    {% endif %}
+  </div>
+
+  {% if comunidades | length == 0 %}
+    <div class="empty-state">
+      <p>Aún no hay comunidades.</p>
+    </div>
+  {% else %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr><th>Nombre</th><th>Estado</th><th>Creada</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for c in comunidades %}
+          <tr>
+            <td>{{ c.nombre }}</td>
+            <td>
+              {% if c.activa %}<span class="badge badge-ok">Activa</span>{% else %}<span class="badge badge-off">Inactiva</span>{% endif %}
+            </td>
+            <td class="muted">{{ c.created_at.strftime('%Y-%m-%d') }}</td>
+            <td>
+              {% if ctx.user | puede('padron', 'comunidades', 'editar') %}
+                <a href="/app/comunidades/{{ c.id }}/editar" class="btn-link">Editar</a>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

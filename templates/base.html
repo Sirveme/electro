@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}electro{% endblock %} · PerúSistemas</title>
+  <link rel="icon" type="image/svg+xml" href="/static/img/logo.svg">
+  <link rel="stylesheet" href="/static/css/base.css">
+  <link rel="stylesheet" href="/static/css/components.css">
+  <link rel="stylesheet" href="/static/css/menu.css">
+  <link rel="stylesheet" href="/static/css/modal.css">
+  <link rel="stylesheet" href="/static/css/wizard.css">
+  <link rel="stylesheet" href="/static/css/padron.css">
+  <link rel="stylesheet" href="/static/css/kebab.css">
+  <script src="/static/js/htmx.min.js" defer></script>
+  <script src="/static/js/hyperscript.min.js" defer></script>
+  <script src="/static/js/modal.js" defer></script>
+</head>
+<body>
+  {% if ctx and ctx.user %}
+  <header class="topbar">
+    <button class="menu-trigger" aria-label="Abrir menú"
+      _="on click toggle .open on #side-menu then toggle .menu-open on body">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+        <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </button>
+    <span class="brand">electro</span>
+    <span class="topbar-spacer"></span>
+    <span class="ctx-user">
+      {{ ctx.user.nombre }}
+      {% if ctx.is_superadmin %}<small class="badge badge-superadmin">SUPERADMIN</small>{% endif %}
+    </span>
+    <form method="post" action="/logout" class="logout-form">
+      {% include 'components/csrf_input.html' %}
+      <button type="submit" class="btn-link" title="Cerrar sesión">Salir</button>
+    </form>
+  </header>
+
+  {% include 'components/menu_lateral.html' %}
+  <div class="menu-backdrop"
+    _="on click remove .open from #side-menu then remove .menu-open from body"></div>
+  {% endif %}
+
+  <main class="main-content{% if not (ctx and ctx.user) %} main-content--guest{% endif %}">
+    {% include 'components/flash_messages.html' ignore missing %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <div id="app-modal-host"></div>
+</body>
+</html>

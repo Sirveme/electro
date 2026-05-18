@@ -1,0 +1,42 @@
+<aside id="side-menu" class="side-menu"
+  _="on click from body
+       if event.target is not me and I do not contain event.target
+       and event.target.closest('.menu-trigger') is null
+       then remove .open from me then remove .menu-open from body end">
+  <div class="side-menu-header">
+    <span class="brand">electro</span>
+    <button class="menu-close" aria-label="Cerrar menú"
+      _="on click remove .open from #side-menu then remove .menu-open from body">×</button>
+  </div>
+
+  {% if ctx.is_superadmin %}
+    <nav class="side-menu-nav">
+      <a href="/sa/" class="menu-item">Inicio</a>
+      <a href="/sa/municipios/" class="menu-item">Municipios</a>
+    </nav>
+  {% elif ctx.is_tenant %}
+    <nav class="side-menu-nav">
+      <a href="/app/" class="menu-item">Inicio</a>
+      {% if ctx.user | puede('padron', 'viviendas', 'ver') %}
+        <div class="menu-group-label">Padrón</div>
+        <a href="/app/padron/" class="menu-item">Viviendas</a>
+        <a href="/app/comunidades/" class="menu-item">Comunidades</a>
+        <a href="/app/referentes/" class="menu-item">Referentes</a>
+      {% endif %}
+      {% if ctx.user | puede('cobranza', 'recibos', 'ver') %}
+        <div class="menu-group-label">Cobranza</div>
+        <a href="#" class="menu-item menu-item--placeholder">Recibos <small>(pendiente)</small></a>
+        <a href="#" class="menu-item menu-item--placeholder">Pagos <small>(pendiente)</small></a>
+        <a href="#" class="menu-item menu-item--placeholder">Caja <small>(pendiente)</small></a>
+      {% endif %}
+      {% if ctx.user | puede('config', 'municipio', 'editar') %}
+        <div class="menu-group-label">Configuración</div>
+        <a href="#" class="menu-item menu-item--placeholder">Tarifas <small>(pendiente)</small></a>
+        <a href="#" class="menu-item menu-item--placeholder">Usuarios <small>(pendiente)</small></a>
+        <a href="#" class="menu-item menu-item--placeholder">Perfiles <small>(pendiente)</small></a>
+      {% endif %}
+      <div class="menu-group-label">Mi cuenta</div>
+      <a href="/app/cuenta/cambiar-clave" class="menu-item">Cambiar clave</a>
+    </nav>
+  {% endif %}
+</aside>

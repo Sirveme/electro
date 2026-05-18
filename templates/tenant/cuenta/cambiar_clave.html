@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block title %}Cambiar clave{% endblock %}
+{% block content %}
+<div class="auth-shell">
+  <div class="auth-card">
+    {% if ctx.user.debe_cambiar_clave %}
+      <h1 class="auth-title">Primer ingreso</h1>
+      <p class="auth-subtitle">Por seguridad, debes establecer una clave nueva antes de continuar.</p>
+    {% else %}
+      <h1 class="auth-title">Cambiar mi clave</h1>
+      <p class="auth-subtitle">Actualiza tu contraseña.</p>
+    {% endif %}
+
+    <form method="post" action="/app/cuenta/cambiar-clave" class="form" autocomplete="off">
+      {% include 'components/csrf_input.html' %}
+
+      <label class="form-field">
+        <span class="form-label">Clave actual</span>
+        <input type="password" name="clave_actual" required autofocus>
+      </label>
+
+      <label class="form-field">
+        <span class="form-label">Clave nueva</span>
+        <input type="password" name="clave_nueva" required minlength="8"
+               pattern="(?=.*[A-Za-z])(?=.*\d).{8,}"
+               title="Mínimo 8 caracteres, con letras y números">
+      </label>
+
+      <label class="form-field">
+        <span class="form-label">Repetir clave nueva</span>
+        <input type="password" name="clave_nueva_repetir" required>
+      </label>
+
+      <p class="form-hint">Mínimo 8 caracteres, con al menos una letra y un número. No debe ser igual a tu DNI.</p>
+
+      <button type="submit" class="btn btn--primary btn--block">Actualizar clave</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

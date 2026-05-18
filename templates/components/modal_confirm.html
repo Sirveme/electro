@@ -1,0 +1,16 @@
+{# Variante confirm. Solo referencia. #}
+<div class="app-modal" role="alertdialog" aria-modal="true">
+  <div class="app-modal-backdrop" data-modal-close></div>
+  <div class="app-modal-window" tabindex="-1">
+    <header class="app-modal-header">
+      <h2 class="app-modal-title">{{ titulo }}</h2>
+    </header>
+    <div class="app-modal-body">{{ mensaje }}</div>
+    <footer class="app-modal-footer">
+      <button type="button" class="btn btn--ghost" data-modal-cancel>{{ cancel_text or 'Cancelar' }}</button>
+      <button type="button" class="btn {{ 'btn--danger' if danger else 'btn--primary' }}" data-modal-ok>
+        {{ ok_text or 'Sí' }}
+      </button>
+    </footer>
+  </div>
+</div>

@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+{% block title %}Vivienda {{ vivienda.codigo_interno }}{% endblock %}
+{% block content %}
+<section class="page">
+  <div class="ficha-header">
+    <div>
+      <h1 class="page-title"><code>{{ vivienda.codigo_interno }}</code></h1>
+      <p class="muted">
+        {{ vivienda.comunidad_nombre or 'Sin comunidad' }}
+        {% if vivienda.referente_nombre %} · Avalado por {{ vivienda.referente_nombre }}{% endif %}
+      </p>
+    </div>
+    <div class="ficha-header-right">
+      <span class="badge badge-{{ 'ok' if vivienda.estado_servicio == 'activo' else 'off' }}">
+        {{ vivienda.estado_servicio }}
+      </span>
+      {% if vivienda.foto_fachada_url %}
+        <a href="{{ vivienda.foto_fachada_url }}" target="_blank" rel="noopener">
+          <img src="{{ vivienda.foto_fachada_url }}" alt="Fachada" class="ficha-foto-mini">
+        </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="ficha-meta">
+    <p><strong>Referencia:</strong> {{ vivienda.referencia_fisica }}</p>
+    {% if vivienda.direccion_textual %}
+      <p><strong>Dirección:</strong> {{ vivienda.direccion_textual }}</p>
+    {% endif %}
+    {% if vivienda.gps_lat and vivienda.gps_lng %}
+      <p><strong>GPS:</strong>
+        <a href="https://www.google.com/maps?q={{ vivienda.gps_lat }},{{ vivienda.gps_lng }}" target="_blank" rel="noopener">
+          {{ vivienda.gps_lat }}, {{ vivienda.gps_lng }}
+        </a>
+        {% if vivienda.gps_precision_metros %}<span class="muted">± {{ vivienda.gps_precision_metros }} m</span>{% endif %}
+      </p>
+    {% endif %}
+  </div>
+
+  <h2>Moradores</h2>
+  <div class="moradores-grid">
+    {% for m in moradores %}
+      <div class="morador-card{% if m.es_jefe_familia %} morador-card--jefe{% endif %}">
+        <div class="morador-card-head">
+          <strong>{{ m.nombre_completo }}</strong>
+          {% if m.es_jefe_familia %}<span class="badge badge-ok">Jefe de familia</span>{% endif %}
+          {% if m.es_responsable_pago %}<span class="badge">Pago</span>{% endif %}
+        </div>
+        <div class="muted">DNI {{ m.dni }}{% if m.telefono %} · {{ m.telefono }}{% endif %}</div>
+        {% if m.acceso_portal %}<div class="muted">Tiene acceso al portal</div>{% endif %}
+      </div>
+    {% endfor %}
+  </div>
+
+  <div class="tabs"
+    _="on click from <button[data-tab]/>
+        set tab to event.target.getAttribute('data-tab')
+        remove .tab-active from <button[data-tab]/>
+        add .tab-active to event.target
+        hide <.tab-panel/>
+        remove .tab-panel-active from <.tab-panel/>
+        show <[data-panel='${tab}']/>
+        add .tab-panel-active to <[data-panel='${tab}']/>">
+    <div class="tabs-header">
+      <button type="button" class="tab-active" data-tab="actual">Inventario actual</button>
+      <button type="button" data-tab="historico">Histórico</button>
+      <button type="button" data-tab="eventos">Eventos</button>
+    </div>
+
+    <div class="tab-panel tab-panel-active" data-panel="actual">
+      {% if inventario_actual | length == 0 %}
+        <p class="muted">Sin artefactos vigentes.</p>
+      {% else %}
+      <table class="table">
+        <thead><tr><th>Artefacto</th><th>Cantidad</th><th>Desde</th><th></th></tr></thead>
+        <tbody>
+          {% for inv in inventario_actual %}
+          <tr>
+            <td>{{ inv.artefacto_nombre_snapshot }}</td>
+            <td>{{ inv.cantidad }}</td>
+            <td class="muted">{{ inv.vigente_desde }}</td>
+            <td>
+              <form method="post" action="/app/padron/{{ vivienda.codigo_interno }}/inventario/{{ inv.id }}/baja"
+                style="display:inline-flex; gap:6px; align-items:center;">
+                {% include 'components/csrf_input.html' %}
+                <select name="motivo" required>
+                  {% for m in motivos_baja %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
+                </select>
+                <button type="submit" class="btn-link"
+                  _="on click halt the event then call appModal.confirm('Dar de baja', '¿Confirmas la baja del artefacto?', {danger:true, okText:'Sí, dar de baja'}) then if it then submit the closest <form/>">
+                  Dar de baja
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+    </div>
+
+    <div class="tab-panel" data-panel="historico" style="display:none">
+      {% if inventario_historico | length == 0 %}
+        <p class="muted">Sin movimientos históricos.</p>
+      {% else %}
+      <table class="table">
+        <thead><tr><th>Artefacto</th><th>Cantidad</th><th>Vigencia</th><th>Motivo baja</th></tr></thead>
+        <tbody>
+          {% for inv in inventario_historico %}
+          <tr>
+            <td>{{ inv.artefacto_nombre_snapshot }}</td>
+            <td>{{ inv.cantidad }}</td>
+            <td class="muted">{{ inv.vigente_desde }} → {{ inv.vigente_hasta }}</td>
+            <td class="muted">{{ inv.motivo_baja or '—' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+    </div>
+
+    <div class="tab-panel" data-panel="eventos" style="display:none">
+      {% if eventos | length == 0 %}
+        <p class="muted">Sin eventos.</p>
+      {% else %}
+      <ul class="timeline">
+        {% for e in eventos %}
+        <li>
+          <strong>{{ e.tipo }}</strong>
+          <span class="muted">{{ e.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+          {% if e.descripcion %}<div>{{ e.descripcion }}</div>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </div>
+  </div>
+</section>
+{% endblock %}

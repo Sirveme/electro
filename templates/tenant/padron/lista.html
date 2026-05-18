@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+{% block title %}Padrón{% endblock %}
+{% block content %}
+<section class="page">
+  <div class="page-header">
+    <h1 class="page-title">Padrón ({{ total }})</h1>
+    {% if ctx.user | puede('padron', 'viviendas', 'crear') %}
+      <a href="/app/padron/nuevo" class="btn btn--primary">+ Nueva vivienda</a>
+    {% endif %}
+  </div>
+
+  <form method="get" action="/app/padron/" class="filters">
+    <select name="comunidad">
+      <option value="">— Todas las comunidades —</option>
+      {% for c in comunidades %}
+        <option value="{{ c.id }}" {% if filtros.comunidad == c.id %}selected{% endif %}>{{ c.nombre }}</option>
+      {% endfor %}
+    </select>
+
+    <select name="estado">
+      <option value="">— Cualquier estado —</option>
+      <option value="activo" {% if filtros.estado == 'activo' %}selected{% endif %}>Activo</option>
+      <option value="cortado" {% if filtros.estado == 'cortado' %}selected{% endif %}>Cortado</option>
+      <option value="suspendido" {% if filtros.estado == 'suspendido' %}selected{% endif %}>Suspendido</option>
+    </select>
+
+    <input type="text" name="q" placeholder="Buscar código o DNI..." value="{{ filtros.q }}">
+    <button type="submit" class="btn btn--ghost">Filtrar</button>
+  </form>
+
+  {% if viviendas | length == 0 %}
+    <div class="empty-state"><p>No se encontraron viviendas con esos filtros.</p></div>
+  {% else %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Comunidad</th>
+            <th>Jefe de familia</th>
+            <th>Referencia</th>
+            <th>Estado</th>
+            <th>Empadronada</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for v in viviendas %}
+          <tr>
+            <td><code>{{ v.codigo_interno }}</code></td>
+            <td>{{ v.comunidad_nombre or '—' }}</td>
+            <td>{{ v.jefe_nombre or '—' }}</td>
+            <td class="muted">{{ v.referencia_fisica[:60] }}{% if v.referencia_fisica | length > 60 %}…{% endif %}</td>
+            <td>
+              {% if v.estado_servicio == 'activo' %}<span class="badge badge-ok">Activo</span>
+              {% elif v.estado_servicio == 'cortado' %}<span class="badge badge-off">Cortado</span>
+              {% else %}<span class="badge">{{ v.estado_servicio }}</span>{% endif %}
+            </td>
+            <td class="muted">{{ v.empadronada_at.strftime('%Y-%m-%d') }}</td>
+            <td>
+              {% set items = [
+                {'href': '/app/padron/' ~ v.codigo_interno, 'label': 'Ver ficha'}
+              ] %}
+              {% include 'components/kebab_menu.html' %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% set total_pages = ((total - 1) // page_size) + 1 if total > 0 else 1 %}
+    {% if total_pages > 1 %}
+    <div class="pagination">
+      {% if page > 1 %}
+        <a href="?{% if filtros.comunidad %}comunidad={{ filtros.comunidad }}&{% endif %}{% if filtros.estado %}estado={{ filtros.estado }}&{% endif %}q={{ filtros.q }}&page={{ page - 1 }}" class="btn btn--ghost">‹ Anterior</a>
+      {% endif %}
+      <span class="muted">Página {{ page }} de {{ total_pages }}</span>
+      {% if page < total_pages %}
+        <a href="?{% if filtros.comunidad %}comunidad={{ filtros.comunidad }}&{% endif %}{% if filtros.estado %}estado={{ filtros.estado }}&{% endif %}q={{ filtros.q }}&page={{ page + 1 }}" class="btn btn--ghost">Siguiente ›</a>
+      {% endif %}
+    </div>
+    {% endif %}
+  {% endif %}
+</section>
+{% endblock %}

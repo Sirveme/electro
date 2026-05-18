@@ -1,0 +1,19 @@
+{# Variante prompt. Solo referencia. #}
+<div class="app-modal" role="dialog" aria-modal="true">
+  <div class="app-modal-backdrop" data-modal-close></div>
+  <div class="app-modal-window" tabindex="-1">
+    <header class="app-modal-header">
+      <h2 class="app-modal-title">{{ titulo }}</h2>
+    </header>
+    <div class="app-modal-body">
+      <label>
+        {{ label }}
+        <input type="text" data-modal-input value="{{ default_value or '' }}" autofocus>
+      </label>
+    </div>
+    <footer class="app-modal-footer">
+      <button type="button" class="btn btn--ghost" data-modal-cancel>{{ cancel_text or 'Cancelar' }}</button>
+      <button type="button" class="btn btn--primary" data-modal-ok>{{ ok_text or 'Aceptar' }}</button>
+    </footer>
+  </div>
+</div>

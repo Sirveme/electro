@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block title %}Municipios{% endblock %}
+{% block content %}
+<section class="page">
+  <div class="page-header">
+    <h1 class="page-title">Municipios</h1>
+    <a href="/sa/municipios/nuevo" class="btn btn--primary">Crear municipio</a>
+  </div>
+
+  {% if municipios | length == 0 %}
+    <div class="empty-state">
+      <p>Aún no hay municipios. Crea el primero.</p>
+    </div>
+  {% else %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>UBIGEO</th>
+            <th>Nombre</th>
+            <th>Departamento / Provincia / Distrito</th>
+            <th>Schema</th>
+            <th>Estado</th>
+            <th>Creado</th>
+            <th aria-label="Acciones"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in municipios %}
+          <tr>
+            <td><code>{{ m.ubigeo }}</code></td>
+            <td>{{ m.nombre }}</td>
+            <td class="muted">{{ m.departamento or '—' }} / {{ m.provincia or '—' }} / {{ m.distrito or '—' }}</td>
+            <td><code>{{ m.schema_name }}</code></td>
+            <td>
+              {% if m.activo %}<span class="badge badge-ok">Activo</span>{% else %}<span class="badge badge-off">Suspendido</span>{% endif %}
+            </td>
+            <td class="muted">{{ m.created_at.strftime('%Y-%m-%d') }}</td>
+            <td>
+              <div class="kebab"
+                _="on click toggle .open on the next .kebab-menu">
+                <button class="kebab-trigger" aria-label="Acciones">⋮</button>
+                <div class="kebab-menu">
+                  <a href="#" class="kebab-item">Ver <small>(pendiente)</small></a>
+                  <a href="#" class="kebab-item">Suspender <small>(pendiente)</small></a>
+                </div>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block title %}Inicio · municipio{% endblock %}
+{% block content %}
+<section class="page">
+  <h1 class="page-title">Hola, {{ ctx.user.nombre }}</h1>
+  <p class="page-subtitle">
+    Bienvenido al sistema.
+    {% if ctx.perfil_codigo %}Perfil: <strong>{{ ctx.perfil_codigo }}</strong>.{% endif %}
+  </p>
+
+  <div class="empty-state">
+    <p>Los módulos de padrón, cobranza y configuración se habilitarán en la siguiente entrega (zClaude-02).</p>
+    <p class="muted">Por ahora, el menú lateral lista qué tendrás disponible según tus permisos.</p>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% block title %}Nueva vivienda — Paso 3{% endblock %}
+{% block content %}
+<section class="page">
+  <header class="wizard-progress">
+    <span class="wizard-progress-step wizard-progress-step--done">1. Vivienda</span>
+    <span class="wizard-progress-step wizard-progress-step--done">2. Jefe</span>
+    <span class="wizard-progress-step wizard-progress-step--active">3. Segundo morador</span>
+    <span class="wizard-progress-step">4. Inventario y foto</span>
+  </header>
+
+  <h1 class="page-title">Segundo morador (opcional)</h1>
+  <p class="muted">Si en esta vivienda hay un segundo morador adulto, regístralo. Sino, omite este paso.</p>
+
+  <form method="post" action="/app/padron/nuevo/paso3" class="form" id="form-segundo">
+    {% include 'components/csrf_input.html' %}
+    <input type="hidden" name="accion" value="continuar" id="accion-input">
+
+    <label class="form-field">
+      <span class="form-label">DNI</span>
+      <input type="text" name="dni" pattern="\d{8}" maxlength="8" inputmode="numeric"
+        value="{{ datos.paso3.dni if datos.paso3 else '' }}">
+    </label>
+
+    <label class="form-field">
+      <span class="form-label">Nombre completo</span>
+      <input type="text" name="nombre_completo" maxlength="160"
+        value="{{ datos.paso3.nombre_completo if datos.paso3 else '' }}">
+    </label>
+
+    <div class="form-row">
+      <label class="form-field">
+        <span class="form-label">Fecha de nacimiento</span>
+        <input type="date" name="fecha_nacimiento"
+          value="{{ datos.paso3.fecha_nacimiento if datos.paso3 else '' }}">
+      </label>
+      <label class="form-field">
+        <span class="form-label">Sexo</span>
+        <select name="sexo">
+          <option value="">—</option>
+          <option value="M" {% if datos.paso3 and datos.paso3.sexo == 'M' %}selected{% endif %}>M</option>
+          <option value="F" {% if datos.paso3 and datos.paso3.sexo == 'F' %}selected{% endif %}>F</option>
+        </select>
+      </label>
+      <label class="form-field">
+        <span class="form-label">Teléfono</span>
+        <input type="text" name="telefono" maxlength="20"
+          value="{{ datos.paso3.telefono if datos.paso3 else '' }}">
+      </label>
+    </div>
+
+    <div class="form-actions">
+      <a href="/app/padron/nuevo/paso2" class="btn btn--ghost">← Atrás</a>
+      <button type="submit" class="btn btn--ghost"
+        _="on click set #accion-input.value to 'omitir'">Omitir paso</button>
+      <button type="submit" class="btn btn--primary"
+        _="on click set #accion-input.value to 'continuar'">Continuar →</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

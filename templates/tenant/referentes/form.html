@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block title %}{% if referente %}Editar{% else %}Nuevo{% endif %} referente{% endblock %}
+{% block content %}
+<section class="page">
+  <h1 class="page-title">{% if referente %}Editar referente{% else %}Nuevo referente{% endif %}</h1>
+
+  <form method="post" action="{% if referente %}/app/referentes/{{ referente.id }}/editar{% else %}/app/referentes/nuevo{% endif %}" class="form">
+    {% include 'components/csrf_input.html' %}
+
+    <label class="form-field">
+      <span class="form-label">Nombre completo</span>
+      <input type="text" name="nombre_completo" required maxlength="160"
+        value="{{ referente.nombre_completo if referente else '' }}">
+    </label>
+
+    <label class="form-field">
+      <span class="form-label">Cargo</span>
+      <select name="cargo" required>
+        {% for c in cargos %}
+          <option value="{{ c }}" {% if referente and referente.cargo == c %}selected{% endif %}>{{ c }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <div class="form-row">
+      <label class="form-field">
+        <span class="form-label">DNI</span>
+        <input type="text" name="dni" maxlength="8" pattern="\d{8}" inputmode="numeric"
+          value="{{ referente.dni if referente else '' }}">
+      </label>
+      <label class="form-field">
+        <span class="form-label">Teléfono</span>
+        <input type="text" name="telefono" maxlength="20"
+          value="{{ referente.telefono if referente else '' }}">
+      </label>
+    </div>
+
+    <label class="form-field">
+      <span class="form-label">URL de foto (opcional)</span>
+      <input type="url" name="foto_url" maxlength="300"
+        value="{{ referente.foto_url if referente else '' }}">
+    </label>
+
+    {% if referente %}
+    <label class="form-field">
+      <input type="checkbox" name="activo" {% if referente.activo %}checked{% endif %}>
+      Activo
+    </label>
+    {% endif %}
+
+    <div class="form-actions">
+      <a href="/app/referentes/" class="btn btn--ghost">Cancelar</a>
+      <button type="submit" class="btn btn--primary">{% if referente %}Guardar{% else %}Crear{% endif %}</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

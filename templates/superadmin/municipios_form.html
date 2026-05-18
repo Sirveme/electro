@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+{% block title %}Nuevo municipio{% endblock %}
+{% block content %}
+<section class="page">
+  <h1 class="page-title">Nuevo municipio</h1>
+  <p class="page-subtitle">El proceso se completa en 3 pasos. Solo el último confirma.</p>
+
+  {% if error %}
+    <div class="alert alert--danger">{{ error }}</div>
+  {% endif %}
+
+  <form method="post" action="/sa/municipios/nuevo" class="form form--wizard" id="wizard-form">
+    {% include 'components/csrf_input.html' %}
+
+    <fieldset class="wizard-step wizard-step--active" data-step="1">
+      <legend>1. Datos del municipio</legend>
+      <label class="form-field">
+        <span class="form-label">UBIGEO (6 dígitos)</span>
+        <input type="text" name="ubigeo" required pattern="\d{6}" maxlength="6"
+          value="{{ form.ubigeo or '' }}" inputmode="numeric">
+      </label>
+      <label class="form-field">
+        <span class="form-label">Nombre del municipio</span>
+        <input type="text" name="nombre" required maxlength="120" value="{{ form.nombre or '' }}">
+      </label>
+      <div class="form-row">
+        <label class="form-field">
+          <span class="form-label">Departamento</span>
+          <input type="text" name="departamento" maxlength="60" value="{{ form.departamento or '' }}">
+        </label>
+        <label class="form-field">
+          <span class="form-label">Provincia</span>
+          <input type="text" name="provincia" maxlength="60" value="{{ form.provincia or '' }}">
+        </label>
+        <label class="form-field">
+          <span class="form-label">Distrito</span>
+          <input type="text" name="distrito" maxlength="60" value="{{ form.distrito or '' }}">
+        </label>
+      </div>
+      <div class="wizard-actions">
+        <button type="button" class="btn btn--primary"
+          _="on click
+              hide closest <fieldset/>
+              then remove .wizard-step--active from closest <fieldset/>
+              then add .wizard-step--active to next <fieldset/>
+              then show next <fieldset/>">Siguiente</button>
+      </div>
+    </fieldset>
+
+    <fieldset class="wizard-step" data-step="2" style="display:none">
+      <legend>2. Administrador del municipio</legend>
+      <label class="form-field">
+        <span class="form-label">DNI</span>
+        <input type="text" name="admin_dni" required pattern="\d{8}" maxlength="8"
+          value="{{ form.admin_dni or '' }}" inputmode="numeric">
+      </label>
+      <label class="form-field">
+        <span class="form-label">Nombre completo</span>
+        <input type="text" name="admin_nombre" required maxlength="160" value="{{ form.admin_nombre or '' }}">
+      </label>
+      <div class="form-row">
+        <label class="form-field">
+          <span class="form-label">Teléfono</span>
+          <input type="text" name="admin_telefono" maxlength="20" value="{{ form.admin_telefono or '' }}">
+        </label>
+        <label class="form-field">
+          <span class="form-label">Email</span>
+          <input type="email" name="admin_email" maxlength="120" value="{{ form.admin_email or '' }}">
+        </label>
+      </div>
+      <label class="form-field">
+        <span class="form-label">Contraseña inicial</span>
+        <input type="password" name="admin_password" required minlength="6">
+        <small class="form-hint">El admin deberá cambiarla en su primer login.</small>
+      </label>
+      <div class="wizard-actions">
+        <button type="button" class="btn btn--ghost"
+          _="on click
+              hide closest <fieldset/>
+              then remove .wizard-step--active from closest <fieldset/>
+              then add .wizard-step--active to previous <fieldset/>
+              then show previous <fieldset/>">Atrás</button>
+        <button type="button" class="btn btn--primary"
+          _="on click
+              hide closest <fieldset/>
+              then remove .wizard-step--active from closest <fieldset/>
+              then add .wizard-step--active to next <fieldset/>
+              then show next <fieldset/>">Siguiente</button>
+      </div>
+    </fieldset>
+
+    <fieldset class="wizard-step" data-step="3" style="display:none">
+      <legend>3. Plan y precio</legend>
+      <label class="form-field">
+        <span class="form-label">Plan</span>
+        <select name="plan">
+          <option value="demo" {% if form.plan == 'demo' or not form.plan %}selected{% endif %}>Demo</option>
+          <option value="basico" {% if form.plan == 'basico' %}selected{% endif %}>Básico</option>
+          <option value="pro" {% if form.plan == 'pro' %}selected{% endif %}>Pro</option>
+        </select>
+      </label>
+      <label class="form-field">
+        <span class="form-label">Precio mensual (S/.)</span>
+        <input type="number" name="precio_mensual" step="0.01" min="0" value="{{ form.precio_mensual or '' }}">
+      </label>
+      <div class="wizard-actions">
+        <button type="button" class="btn btn--ghost"
+          _="on click
+              hide closest <fieldset/>
+              then remove .wizard-step--active from closest <fieldset/>
+              then add .wizard-step--active to previous <fieldset/>
+              then show previous <fieldset/>">Atrás</button>
+        <button type="submit" class="btn btn--primary">Crear municipio</button>
+      </div>
+    </fieldset>
+  </form>
+</section>
+{% endblock %}

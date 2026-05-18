@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+{% block title %}Nueva vivienda — Paso 4{% endblock %}
+{% block content %}
+<section class="page">
+  <header class="wizard-progress">
+    <span class="wizard-progress-step wizard-progress-step--done">1. Vivienda</span>
+    <span class="wizard-progress-step wizard-progress-step--done">2. Jefe</span>
+    <span class="wizard-progress-step wizard-progress-step--done">3. Segundo morador</span>
+    <span class="wizard-progress-step wizard-progress-step--active">4. Inventario y foto</span>
+  </header>
+
+  <h1 class="page-title">Inventario y foto de fachada</h1>
+
+  <div class="estimacion-box" id="estimacion-box">
+    <div>Estimación mensual:</div>
+    <div class="estimacion-monto">S/. <span id="estimacion-monto">0.00</span></div>
+    <small class="muted">
+      Cargo fijo: S/. {{ config.cargo_fijo_mensual or '0' }}
+      {% if config.adicional_por_morador and (config.adicional_por_morador | float) > 0 %}
+        · Adicional por morador: S/. {{ config.adicional_por_morador }}
+      {% endif %}
+    </small>
+  </div>
+
+  <input type="text" id="filtro-artefactos" class="filtro-input" placeholder="Buscar artefacto..."
+    _="on input
+        set q to my value.toLowerCase()
+        for row in <.inv-row/>
+          if row.dataset.search.includes(q) then show row else hide row end
+        end">
+
+  <div class="inv-list" id="inv-list">
+    {% for a in catalogo %}
+    <div class="inv-row" data-search="{{ (a.nombre ~ ' ' ~ a.codigo ~ ' ' ~ a.categoria) | lower }}">
+      <span class="inv-icon">{{ a.icono or '·' }}</span>
+      <div class="inv-info">
+        <strong>{{ a.nombre }}</strong>
+        <small class="muted">{{ a.categoria }} · S/. {{ '%.2f' | format(a.tarifa or 0) }}/mes</small>
+      </div>
+      <input type="number" class="inv-cantidad" min="0" value="0"
+        data-origen="catalogo" data-codigo="{{ a.codigo }}" data-tarifa="{{ a.tarifa or 0 }}"
+        _="on input call window.recomputarEstimacion()">
+    </div>
+    {% endfor %}
+    {% for a in propios %}
+    <div class="inv-row" data-search="{{ (a.nombre ~ ' ' ~ a.codigo ~ ' ' ~ a.categoria) | lower }}">
+      <span class="inv-icon">★</span>
+      <div class="inv-info">
+        <strong>{{ a.nombre }}</strong>
+        <small class="muted">{{ a.categoria }} · S/. {{ '%.2f' | format(a.tarifa or 0) }}/mes · propio</small>
+      </div>
+      <input type="number" class="inv-cantidad" min="0" value="0"
+        data-origen="propio" data-codigo="{{ a.codigo }}" data-tarifa="{{ a.tarifa or 0 }}"
+        _="on input call window.recomputarEstimacion()">
+    </div>
+    {% endfor %}
+  </div>
+
+  <form method="post" action="/app/padron/nuevo/paso4" class="form" enctype="multipart/form-data" id="form-final">
+    {% include 'components/csrf_input.html' %}
+    <input type="hidden" name="inventario_json" id="inventario-json" value="[]">
+
+    <label class="form-field">
+      <span class="form-label">Foto de la fachada (obligatoria)</span>
+      <input type="file" name="foto_fachada" id="foto-input" accept="image/*" capture="environment" required
+        _="on change call window.onFotoSeleccionada(event.target.files[0])">
+      <img id="foto-preview" alt="" style="display:none; max-width:240px; border-radius:8px; margin-top:8px;">
+    </label>
+
+    <div class="form-actions">
+      <a href="/app/padron/nuevo/paso3" class="btn btn--ghost">← Atrás</a>
+      <button type="submit" class="btn btn--primary"
+        _="on submit call window.prepararPayload()">
+        Finalizar empadronamiento
+      </button>
+    </div>
+  </form>
+</section>
+
+<script src="/static/js/image_compress.js" defer></script>
+<script>
+  var CARGO_FIJO = parseFloat({{ config.cargo_fijo_mensual or '0' }}) || 0;
+  var ADICIONAL = parseFloat({{ config.adicional_por_morador or '0' }}) || 0;
+  var N_MORADORES = {% if datos.paso3 %}2{% else %}1{% endif %};
+
+  window.recomputarEstimacion = function() {
+    var total = CARGO_FIJO + (N_MORADORES * ADICIONAL);
+    document.querySelectorAll('.inv-cantidad').forEach(function(inp) {
+      var cant = parseInt(inp.value) || 0;
+      var tarifa = parseFloat(inp.dataset.tarifa) || 0;
+      total += cant * tarifa;
+    });
+    document.getElementById('estimacion-monto').textContent = total.toFixed(2);
+  };
+
+  window.prepararPayload = function() {
+    var items = [];
+    document.querySelectorAll('.inv-cantidad').forEach(function(inp) {
+      var cant = parseInt(inp.value) || 0;
+      if (cant > 0) {
+        items.push({origen: inp.dataset.origen, codigo: inp.dataset.codigo, cantidad: cant});
+      }
+    });
+    document.getElementById('inventario-json').value = JSON.stringify(items);
+  };
+
+  window.onFotoSeleccionada = async function(file) {
+    if (!file) return;
+    var compressed = await window.imageCompress.fromFile(file, {maxWidth: 1280, quality: 0.82});
+    // Reemplazar el archivo del input por el comprimido
+    var dt = new DataTransfer();
+    dt.items.add(new File([compressed], 'fachada.jpg', {type: 'image/jpeg'}));
+    document.getElementById('foto-input').files = dt.files;
+
+    var preview = document.getElementById('foto-preview');
+    preview.src = URL.createObjectURL(compressed);
+    preview.style.display = 'block';
+  };
+
+  // Estimación inicial
+  document.addEventListener('DOMContentLoaded', window.recomputarEstimacion);
+</script>
+{% endblock %}

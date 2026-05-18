@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+{% block title %}Nueva vivienda — Paso 2{% endblock %}
+{% block content %}
+<section class="page">
+  <header class="wizard-progress">
+    <span class="wizard-progress-step wizard-progress-step--done">1. Vivienda</span>
+    <span class="wizard-progress-step wizard-progress-step--active">2. Jefe</span>
+    <span class="wizard-progress-step">3. Segundo morador</span>
+    <span class="wizard-progress-step">4. Inventario y foto</span>
+  </header>
+
+  <h1 class="page-title">Jefe de familia</h1>
+
+  <div class="dni-scanner-block">
+    <button type="button" class="btn btn--primary btn--lg" id="btn-escanear-dni"
+      _="on click call window.dniScanner.scan(window.onDniScanned, window.onDniTimeout, 8000)">
+      📷 Escanear DNI
+    </button>
+    <p class="muted">O ingresa los datos manualmente abajo.</p>
+    <video id="dni-video" autoplay muted playsinline style="display:none; max-width:100%; border-radius:8px;"></video>
+    <div id="dni-status" class="muted" aria-live="polite"></div>
+    <button type="button" id="btn-foto-dni" class="btn btn--ghost" style="display:none"
+      _="on click
+          set #dni-input-file.value to ''
+          call #dni-input-file.click()">📸 Tomar foto del frente del DNI</button>
+    <input type="file" id="dni-input-file" accept="image/*" capture="environment" style="display:none"
+      _="on change call window.onDniPhotoCaptured(event.target.files[0])">
+  </div>
+
+  <form method="post" action="/app/padron/nuevo/paso2" class="form" id="form-jefe">
+    {% include 'components/csrf_input.html' %}
+
+    <label class="form-field">
+      <span class="form-label">DNI</span>
+      <input type="text" name="dni" id="jefe-dni" required pattern="\d{8}" maxlength="8" inputmode="numeric"
+        value="{{ datos.paso2.dni if datos.paso2 else '' }}">
+    </label>
+
+    <label class="form-field">
+      <span class="form-label">Nombre completo</span>
+      <input type="text" name="nombre_completo" id="jefe-nombre" required maxlength="160"
+        value="{{ datos.paso2.nombre_completo if datos.paso2 else '' }}">
+    </label>
+
+    <div class="form-row">
+      <label class="form-field">
+        <span class="form-label">Fecha de nacimiento</span>
+        <input type="date" name="fecha_nacimiento" id="jefe-fnac"
+          value="{{ datos.paso2.fecha_nacimiento if datos.paso2 else '' }}">
+      </label>
+      <label class="form-field">
+        <span class="form-label">Sexo</span>
+        <select name="sexo" id="jefe-sexo">
+          <option value="">—</option>
+          <option value="M" {% if datos.paso2 and datos.paso2.sexo == 'M' %}selected{% endif %}>M</option>
+          <option value="F" {% if datos.paso2 and datos.paso2.sexo == 'F' %}selected{% endif %}>F</option>
+        </select>
+      </label>
+      <label class="form-field">
+        <span class="form-label">Teléfono</span>
+        <input type="text" name="telefono" maxlength="20"
+          value="{{ datos.paso2.telefono if datos.paso2 else '' }}">
+      </label>
+    </div>
+
+    <label class="form-field">
+      <input type="checkbox" name="acceso_portal" {% if datos.paso2 and datos.paso2.acceso_portal %}checked{% endif %}>
+      Habilitar acceso al portal del morador (clave inicial = DNI)
+    </label>
+
+    <div class="form-actions">
+      <a href="/app/padron/nuevo/paso1" class="btn btn--ghost">← Atrás</a>
+      <button type="submit" class="btn btn--primary">Continuar →</button>
+    </div>
+  </form>
+</section>
+<script src="/static/js/zxing.min.js" defer></script>
+<script src="/static/js/dni_scanner.js" defer></script>
+<script>
+  // Llenado del formulario tras escaneo exitoso o Vision exitoso.
+  window.onDniScanned = function(d) {
+    if (d.dni) document.getElementById('jefe-dni').value = d.dni;
+    if (d.nombres || d.paterno || d.materno) {
+      var nombre = [d.nombres, d.paterno, d.materno].filter(Boolean).join(' ');
+      if (nombre) document.getElementById('jefe-nombre').value = nombre;
+    }
+    if (d.fecha_nac) document.getElementById('jefe-fnac').value = d.fecha_nac;
+    if (d.sexo) document.getElementById('jefe-sexo').value = d.sexo;
+    document.getElementById('dni-status').textContent = 'DNI leído. Revisa los datos antes de continuar.';
+  };
+  window.onDniTimeout = function() {
+    document.getElementById('dni-status').textContent = 'No se pudo leer el código del reverso. Toma una foto del frente.';
+    document.getElementById('btn-foto-dni').style.display = 'inline-flex';
+  };
+  window.onDniPhotoCaptured = async function(file) {
+    if (!file) return;
+    document.getElementById('dni-status').textContent = 'Procesando foto del DNI...';
+    var compressed = await window.imageCompress.fromFile(file, {maxWidth: 1280, quality: 0.85});
+    var fd = new FormData();
+    fd.append('imagen', compressed, 'dni.jpg');
+    var csrf = document.querySelector('input[name="_csrf"]').value;
+    try {
+      var r = await fetch('/app/api/dni/extract', {
+        method: 'POST', body: fd, headers: {'X-CSRF-Token': csrf}
+      });
+      if (!r.ok) { throw new Error('HTTP ' + r.status); }
+      var data = await r.json();
+      window.onDniScanned({
+        dni: data.dni,
+        paterno: data.apellido_paterno,
+        materno: data.apellido_materno,
+        nombres: data.nombres,
+        fecha_nac: data.fecha_nacimiento,
+        sexo: data.sexo
+      });
+    } catch (e) {
+      window.appModal.alert('Error extrayendo DNI', e.message, {tipo:'error'});
+    }
+  };
+</script>
+<script src="/static/js/image_compress.js" defer></script>
+{% endblock %}

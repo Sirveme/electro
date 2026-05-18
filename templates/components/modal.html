@@ -1,0 +1,16 @@
+{# Plantilla del modal genérico. Renderizada por modal.js dinámicamente. #}
+{# No se incluye estáticamente; queda aquí como referencia/snippet. #}
+<div class="app-modal" role="dialog" aria-modal="true">
+  <div class="app-modal-backdrop" data-modal-close></div>
+  <div class="app-modal-window" tabindex="-1">
+    <header class="app-modal-header">
+      <h2 class="app-modal-title">{{ titulo }}</h2>
+    </header>
+    <div class="app-modal-body">{{ cuerpo }}</div>
+    <footer class="app-modal-footer">
+      {% block actions %}
+      <button type="button" class="btn btn--primary" data-modal-ok>Aceptar</button>
+      {% endblock %}
+    </footer>
+  </div>
+</div>

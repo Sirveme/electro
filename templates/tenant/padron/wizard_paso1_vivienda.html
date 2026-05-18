@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+{% block title %}Nueva vivienda — Paso 1{% endblock %}
+{% block content %}
+<section class="page">
+  <header class="wizard-progress">
+    <span class="wizard-progress-step wizard-progress-step--active">1. Vivienda</span>
+    <span class="wizard-progress-step">2. Jefe</span>
+    <span class="wizard-progress-step">3. Segundo morador</span>
+    <span class="wizard-progress-step">4. Inventario y foto</span>
+  </header>
+
+  <h1 class="page-title">Datos de la vivienda</h1>
+
+  <form method="post" action="/app/padron/nuevo/paso1" class="form">
+    {% include 'components/csrf_input.html' %}
+
+    <label class="form-field">
+      <span class="form-label">Comunidad</span>
+      <select name="comunidad_id" required>
+        <option value="">— Selecciona —</option>
+        {% for c in comunidades %}
+          <option value="{{ c.id }}" {% if datos.paso1 and datos.paso1.comunidad_id == c.id %}selected{% endif %}>{{ c.nombre }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label class="form-field">
+      <span class="form-label">Referente que avala (opcional)</span>
+      <select name="referente_id">
+        <option value="">— Ninguno —</option>
+        {% for r in referentes %}
+          <option value="{{ r.id }}" {% if datos.paso1 and datos.paso1.referente_id == r.id %}selected{% endif %}>
+            {{ r.nombre_completo }} · {{ r.cargo }}
+          </option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label class="form-field">
+      <span class="form-label">Fuente de validación</span>
+      <input type="text" name="fuente_validacion" list="fuentes-list" maxlength="80"
+        value="{{ datos.paso1.fuente_validacion if datos.paso1 else '' }}">
+      <datalist id="fuentes-list">
+        <option value="Padrón parroquial">
+        <option value="Acta de asamblea">
+        <option value="Constancia de posesión">
+        <option value="Testimonio verbal">
+      </datalist>
+    </label>
+
+    <label class="form-field">
+      <span class="form-label">Referencia física (obligatoria)</span>
+      <textarea name="referencia_fisica" required rows="3">{{ datos.paso1.referencia_fisica if datos.paso1 else '' }}</textarea>
+      <small class="form-hint">Ej: "Frente al pozo comunal, casa de adobe con techo de calamina."</small>
+    </label>
+
+    <label class="form-field">
+      <span class="form-label">Dirección textual (opcional)</span>
+      <input type="text" name="direccion_textual" maxlength="200"
+        value="{{ datos.paso1.direccion_textual if datos.paso1 else '' }}">
+    </label>
+
+    <fieldset class="gps-field">
+      <legend>Geolocalización</legend>
+      <input type="hidden" id="gps_lat" name="gps_lat" value="{{ datos.paso1.gps_lat if datos.paso1 else '' }}">
+      <input type="hidden" id="gps_lng" name="gps_lng" value="{{ datos.paso1.gps_lng if datos.paso1 else '' }}">
+      <input type="hidden" id="gps_precision" name="gps_precision" value="{{ datos.paso1.gps_precision if datos.paso1 else '' }}">
+      <button type="button" class="btn btn--ghost"
+        _="on click
+            set me.textContent to 'Capturando...'
+            call window.geo.captureCurrent()
+            set #gps_lat.value to it.lat
+            set #gps_lng.value to it.lng
+            set #gps_precision.value to it.accuracyMeters
+            set #gps-display.textContent to it.lat + ', ' + it.lng + ' (± ' + it.accuracyMeters + ' m)'
+            set me.textContent to 'Capturar GPS de nuevo'
+            catch err
+            set me.textContent to 'Capturar GPS'
+            call window.appModal.alert('Error GPS', err.message, {tipo:'error'})">Capturar GPS</button>
+      <span id="gps-display" class="muted">
+        {% if datos.paso1 and datos.paso1.gps_lat %}
+          {{ datos.paso1.gps_lat }}, {{ datos.paso1.gps_lng }}
+          {% if datos.paso1.gps_precision %} (± {{ datos.paso1.gps_precision }} m){% endif %}
+        {% else %}
+          Sin capturar
+        {% endif %}
+      </span>
+    </fieldset>
+
+    <div class="form-actions">
+      <button type="button" class="btn btn--ghost"
+        _="on click
+            call window.appModal.confirm('Cancelar empadronamiento', '¿Descartar los datos ingresados?', {okText:'Sí, cancelar', cancelText:'Volver', danger:true})
+            then if it then location.href = '/app/padron/'">Cancelar</button>
+      <button type="submit" class="btn btn--primary">Continuar →</button>
+    </div>
+  </form>
+</section>
+<script src="/static/js/geolocation.js" defer></script>
+{% endblock %}

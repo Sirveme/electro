@@ -1,0 +1,6 @@
+{# Uso: {% include 'components/card_metric.html' with context %} #}
+<div class="card-metric">
+  <div class="card-metric-label">{{ label }}</div>
+  <div class="card-metric-value">{{ value }}</div>
+  {% if hint %}<div class="card-metric-hint">{{ hint }}</div>{% endif %}
+</div>

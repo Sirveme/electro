@@ -1,0 +1,19 @@
+/* Kebab menu — refuerzo sobre el ya en components.css */
+
+.kebab-item--btn {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 9px 14px;
+  font: inherit;
+  cursor: pointer;
+}
+.kebab-item--btn:hover { background: var(--color-bg-soft); }
+
+@media (max-width: 540px) {
+  .kebab-menu {
+    right: auto;
+    left: 0;
+  }
+}
