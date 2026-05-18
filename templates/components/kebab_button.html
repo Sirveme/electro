@@ -1,0 +1,25 @@
+{# Macro reusable para kebab menus.
+   Uso:
+     {% set items = [
+       {'href': '/app/padron/V-0001', 'label': 'Ver ficha'},
+       {'href': '/app/padron/V-0001/editar', 'label': 'Editar'},
+       {'hyperscript': "on click halt then call appModal.confirm('Suspender', '...') then if it then ...", 'label': 'Suspender'},
+     ] %}
+     {% include 'components/kebab_button.html' %}
+#}
+<div class="kebab"
+     _="on click toggle .open on the first .kebab-menu in me">
+  <button type="button" class="kebab-trigger" aria-label="Acciones">⋮</button>
+  <div class="kebab-menu">
+    {% for it in items %}
+      {% if it.href %}
+        <a href="{{ it.href }}" class="kebab-item">{{ it.label }}</a>
+      {% else %}
+        <button type="button" class="kebab-item kebab-item--btn"
+                {% if it.hyperscript %}_="{{ it.hyperscript }}"{% endif %}>
+          {{ it.label }}
+        </button>
+      {% endif %}
+    {% endfor %}
+  </div>
+</div>
