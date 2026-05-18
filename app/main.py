@@ -18,6 +18,8 @@ from app.routes.tenant import comunidades as tenant_comunidades
 from app.routes.tenant import referentes as tenant_referentes
 from app.routes.tenant import padron as tenant_padron
 from app.routes.tenant import api_dni as tenant_api_dni
+from app.routes.tenant import tarifas as tenant_tarifas
+from app.routes.tenant import configuracion as tenant_configuracion
 
 logging.basicConfig(
     level=logging.INFO if settings.ENVIRONMENT == "production" else logging.DEBUG,
@@ -77,3 +79,5 @@ app.include_router(tenant_comunidades.router)
 app.include_router(tenant_referentes.router)
 app.include_router(tenant_padron.router)
 app.include_router(tenant_api_dni.router)
+app.include_router(tenant_tarifas.router)
+app.include_router(tenant_configuracion.router)
