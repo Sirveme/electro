@@ -1,12 +1,12 @@
 """
 Padrón de viviendas: listado, ficha, wizard de empadronamiento (4 pasos),
 edición y baja de artefactos.
+
+El wizard guarda progreso parcial en request.session['empadronamiento'] y
+solo escribe a la BD en el paso 4 a través de empadronamiento_service.
 """
 import json
 import logging
-import os
-import time
-from datetime import date
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
@@ -16,11 +16,13 @@ from sqlalchemy import text
 from app.context_processor import build_context
 from app.database import tenant_session
 from app.dependencies import CurrentUser, require_password_changed
-from app.security import hash_password
-from app.services.gcs_uploader import GCSUploaderError, get_gcs_uploader
+from app.services.csrf import verify_csrf
+from app.services.empadronamiento_service import (
+    EmpadronamientoError,
+    crear_vivienda_completa,
+)
 from app.services.inventario_service import (
     InventarioError,
-    agregar_artefacto,
     dar_de_baja_artefacto,
     inventario_actual_de_vivienda,
 )
@@ -31,7 +33,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/app/padron")
 
 SESSION_KEY = "empadronamiento"
-
 MOTIVOS_BAJA = ["vendido", "malogrado", "autoreporte_morador", "correccion"]
 
 
@@ -245,7 +246,7 @@ async def wizard_paso1_form(
     )
 
 
-@router.post("/nuevo/paso1")
+@router.post("/nuevo/paso1", dependencies=[Depends(verify_csrf)])
 async def wizard_paso1_submit(
     request: Request,
     user: CurrentUser = Depends(require_password_changed),
@@ -294,7 +295,7 @@ async def wizard_paso2_form(
     )
 
 
-@router.post("/nuevo/paso2")
+@router.post("/nuevo/paso2", dependencies=[Depends(verify_csrf)])
 async def wizard_paso2_submit(
     request: Request,
     user: CurrentUser = Depends(require_password_changed),
@@ -347,11 +348,11 @@ async def wizard_paso3_form(
     )
 
 
-@router.post("/nuevo/paso3")
+@router.post("/nuevo/paso3", dependencies=[Depends(verify_csrf)])
 async def wizard_paso3_submit(
     request: Request,
     user: CurrentUser = Depends(require_password_changed),
-    accion: str = Form("continuar"),  # continuar | omitir
+    accion: str = Form("continuar"),
     dni: str = Form(""),
     nombre_completo: str = Form(""),
     fecha_nacimiento: str = Form(""),
@@ -400,7 +401,6 @@ async def wizard_paso4_form(
         return RedirectResponse("/app/padron/nuevo/paso1", status_code=303)
 
     async with tenant_session(user.tenant_schema) as ts:
-        # Catálogo público con override habilitado del tenant + tarifa local
         catalogo = (
             await ts.execute(
                 text(
@@ -444,7 +444,7 @@ async def wizard_paso4_form(
     )
 
 
-@router.post("/nuevo/paso4")
+@router.post("/nuevo/paso4", dependencies=[Depends(verify_csrf)])
 async def wizard_paso4_submit(
     request: Request,
     user: CurrentUser = Depends(require_password_changed),
@@ -466,170 +466,51 @@ async def wizard_paso4_submit(
         set_flash(request, "error", f"Inventario inválido: {exc}")
         return RedirectResponse("/app/padron/nuevo/paso4", status_code=303)
 
-    items_filtrados = []
-    for it in items:
-        try:
-            cantidad = int(it.get("cantidad", 0))
-        except (TypeError, ValueError):
-            cantidad = 0
-        if cantidad <= 0:
-            continue
-        origen = it.get("origen")
-        codigo = it.get("codigo")
-        if origen not in ("catalogo", "propio") or not codigo:
-            continue
-        items_filtrados.append({"origen": origen, "codigo": str(codigo), "cantidad": cantidad})
-
     foto_bytes = await foto_fachada.read()
     if not foto_bytes:
         set_flash(request, "error", "La foto de fachada es obligatoria.")
         return RedirectResponse("/app/padron/nuevo/paso4", status_code=303)
 
-    # 1) Subir foto a GCS (si falla, abortamos antes de tocar la BD)
-    ubigeo = user.tenant_schema.removeprefix("muni_")
-    ts_epoch = int(time.time())
-    foto_path: Optional[str] = None
-    foto_url: Optional[str] = None
-    foto_uploaded = False
-    try:
-        uploader = get_gcs_uploader()
-        foto_path = f"electro/{ubigeo}/viviendas/_pendiente_{ts_epoch}/fachada_{ts_epoch}.jpg"
-        foto_url = uploader.subir_imagen(foto_bytes, foto_path, content_type=foto_fachada.content_type or "image/jpeg")
-        foto_uploaded = True
-    except GCSUploaderError as exc:
-        logger.warning("Foto no subida a GCS: %s", exc)
-        set_flash(request, "warning", f"No se pudo subir la foto: {exc}. Continuando sin foto.")
-        foto_url = None
+    p1 = datos["paso1"]
+    p2 = datos["paso2"]
+    p3 = datos.get("paso3")
 
-    # 2) Insertar todo en transacción
+    datos_vivienda = {
+        "comunidad_id": p1["comunidad_id"],
+        "referente_id": p1.get("referente_id"),
+        "fuente_validacion": p1.get("fuente_validacion"),
+        "referencia_fisica": p1["referencia_fisica"],
+        "direccion_textual": p1.get("direccion_textual"),
+        "gps_lat": p1.get("gps_lat"),
+        "gps_lng": p1.get("gps_lng"),
+        "gps_precision_metros": p1.get("gps_precision"),
+    }
+
     async with tenant_session(user.tenant_schema) as ts:
         try:
-            # correlativo de la vivienda
-            row = (
-                await ts.execute(
-                    text(
-                        "SELECT COALESCE(MAX(CAST(SUBSTRING(codigo_interno FROM 'V-(\\d+)') AS INT)), 0) + 1 "
-                        "AS siguiente FROM viviendas"
-                    )
-                )
-            ).first()
-            siguiente = int(row.siguiente)
-            codigo = f"V-{siguiente:04d}"
-
-            p1 = datos["paso1"]
-            p2 = datos["paso2"]
-            p3 = datos.get("paso3")
-
-            v_row = (
-                await ts.execute(
-                    text(
-                        "INSERT INTO viviendas ("
-                        "codigo_interno, comunidad_id, referente_id, fuente_validacion, "
-                        "referencia_fisica, direccion_textual, gps_lat, gps_lng, gps_precision_metros, "
-                        "foto_fachada_url, estado_servicio, empadronada_por_user_id"
-                        ") VALUES (:c, :com, :ref, :fv, :rf, :dt, :lat, :lng, :prec, :url, 'activo', :u) "
-                        "RETURNING id"
-                    ),
-                    {
-                        "c": codigo, "com": p1["comunidad_id"], "ref": p1.get("referente_id"),
-                        "fv": p1.get("fuente_validacion"), "rf": p1["referencia_fisica"],
-                        "dt": p1.get("direccion_textual"),
-                        "lat": p1.get("gps_lat"), "lng": p1.get("gps_lng"),
-                        "prec": p1.get("gps_precision"),
-                        "url": foto_url, "u": user.user_id,
-                    },
-                )
-            ).first()
-            vivienda_id = v_row.id
-
-            # Insertar jefe
-            jefe_hash = None
-            if p2.get("acceso_portal"):
-                jefe_hash = hash_password(p2["dni"])
-
-            await ts.execute(
-                text(
-                    "INSERT INTO moradores (vivienda_id, dni, nombre_completo, fecha_nacimiento, "
-                    "sexo, telefono, es_jefe_familia, es_responsable_pago, acceso_portal, "
-                    "access_code, debe_cambiar_clave, activo) "
-                    "VALUES (:v, :d, :n, :fn, :sx, :tel, TRUE, TRUE, :ap, :ac, TRUE, TRUE)"
-                ),
-                {
-                    "v": vivienda_id, "d": p2["dni"], "n": p2["nombre_completo"],
-                    "fn": p2.get("fecha_nacimiento"), "sx": p2.get("sexo"), "tel": p2.get("telefono"),
-                    "ap": bool(p2.get("acceso_portal")), "ac": jefe_hash,
-                },
+            result = await crear_vivienda_completa(
+                ts,
+                schema_name=user.tenant_schema,
+                user_id=user.user_id,
+                datos_vivienda=datos_vivienda,
+                jefe_familia=p2,
+                segundo_morador=p3,
+                artefactos=items,
+                foto_fachada_bytes=foto_bytes,
+                foto_fachada_content_type=foto_fachada.content_type or "image/jpeg",
             )
-
-            if p3:
-                await ts.execute(
-                    text(
-                        "INSERT INTO moradores (vivienda_id, dni, nombre_completo, fecha_nacimiento, "
-                        "sexo, telefono, es_jefe_familia, es_responsable_pago, activo) "
-                        "VALUES (:v, :d, :n, :fn, :sx, :tel, FALSE, FALSE, TRUE)"
-                    ),
-                    {
-                        "v": vivienda_id, "d": p3["dni"], "n": p3["nombre_completo"],
-                        "fn": p3.get("fecha_nacimiento"), "sx": p3.get("sexo"), "tel": p3.get("telefono"),
-                    },
-                )
-
-            # Inventario
-            for it in items_filtrados:
-                await agregar_artefacto(
-                    ts, user.tenant_schema,
-                    vivienda_id=vivienda_id,
-                    artefacto_origen=it["origen"],
-                    artefacto_codigo=it["codigo"],
-                    cantidad=it["cantidad"],
-                    user_id=user.user_id,
-                    motivo="empadronamiento_inicial",
-                )
-
-            # Foto
-            if foto_url:
-                await ts.execute(
-                    text(
-                        "INSERT INTO vivienda_fotos (vivienda_id, url, tipo, tomada_por_user_id, es_actual) "
-                        "VALUES (:v, :u, 'fachada', :uid, TRUE)"
-                    ),
-                    {"v": vivienda_id, "u": foto_url, "uid": user.user_id},
-                )
-
-            # Evento empadronamiento
-            await ts.execute(
-                text(
-                    "INSERT INTO vivienda_eventos (vivienda_id, tipo, descripcion, user_id) "
-                    "VALUES (:v, 'empadronamiento', :d, :u)"
-                ),
-                {
-                    "v": vivienda_id,
-                    "d": f"Vivienda empadronada con código {codigo}",
-                    "u": user.user_id,
-                },
-            )
-
-            await ts.commit()
-
-        except (InventarioError, Exception) as exc:
-            logger.exception("Error finalizando empadronamiento — rollback")
-            await ts.rollback()
-            if foto_uploaded and foto_path:
-                try:
-                    get_gcs_uploader().eliminar(foto_path)
-                except Exception:
-                    logger.exception("Error eliminando foto huérfana en GCS")
+        except EmpadronamientoError as exc:
             set_flash(request, "error", f"No se pudo guardar la vivienda: {exc}")
             return RedirectResponse("/app/padron/nuevo/paso4", status_code=303)
 
     _clear_wizard(request)
-    set_flash(request, "success", f"Vivienda {codigo} empadronada correctamente.")
-    return RedirectResponse(f"/app/padron/{codigo}", status_code=303)
+    set_flash(request, "success", f"Vivienda {result['codigo_interno']} empadronada correctamente.")
+    return RedirectResponse(f"/app/padron/{result['codigo_interno']}", status_code=303)
 
 
 # ---------- baja artefacto ----------
 
-@router.post("/{codigo}/inventario/{inv_id}/baja")
+@router.post("/{codigo}/inventario/{inv_id}/baja", dependencies=[Depends(verify_csrf)])
 async def baja_artefacto(
     request: Request,
     codigo: str,

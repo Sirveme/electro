@@ -9,6 +9,7 @@ import logging
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
 from app.dependencies import CurrentUser, require_password_changed
+from app.services.csrf import verify_csrf
 from app.services.dni_vision import DniVisionError, extraer_datos_dni_desde_imagen
 
 logger = logging.getLogger(__name__)
@@ -17,7 +18,7 @@ router = APIRouter(prefix="/app/api/dni")
 MAX_IMAGE_BYTES = 8 * 1024 * 1024  # 8 MB
 
 
-@router.post("/extract")
+@router.post("/extract", dependencies=[Depends(verify_csrf)])
 async def extract(
     user: CurrentUser = Depends(require_password_changed),
     imagen: UploadFile = File(...),
