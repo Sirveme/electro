@@ -20,6 +20,7 @@ from app.security import (
     needs_rehash,
     verify_password,
 )
+from app.services.csrf import ensure_csrf_cookie, verify_csrf
 from app.utils.flash import set_flash
 
 logger = logging.getLogger(__name__)
@@ -32,20 +33,22 @@ def _templates(request: Request):
 
 @router.get("/login", response_class=HTMLResponse)
 async def login_form(request: Request):
-    return _templates(request).TemplateResponse(
+    response = _templates(request).TemplateResponse(
         "auth/login.html",
         build_context(request, user=None),
     )
+    ensure_csrf_cookie(request, response)
+    return response
 
 
-@router.post("/login")
+@router.post("/login", dependencies=[Depends(verify_csrf)])
 async def login_submit(
     request: Request,
     usuario: str = Form(...),
     password: str = Form(...),
     db: AsyncSession = Depends(get_session),
 ):
-    # El middleware CSRF ya validó el token _csrf antes de llegar aquí.
+    # El dependency verify_csrf ya validó el token antes de entrar aquí.
     usuario_n = (usuario or "").strip()
 
     # 1) Intentar superadmin (username)
@@ -111,15 +114,17 @@ async def login_submit(
                         return RedirectResponse("/app/cuenta/cambiar-clave", status_code=303)
                     return RedirectResponse("/app/", status_code=303)
 
-    set_flash(request, "error", "Credenciales inválidas.")
-    return _templates(request).TemplateResponse(
+    set_flash(request, "error", "Credenciales invalidas.")
+    response = _templates(request).TemplateResponse(
         "auth/login.html",
         build_context(request, user=None, usuario_value=usuario_n),
         status_code=401,
     )
+    ensure_csrf_cookie(request, response)
+    return response
 
 
-@router.post("/logout")
+@router.post("/logout", dependencies=[Depends(verify_csrf)])
 async def logout(request: Request):
     request.session.clear()
     return RedirectResponse("/login", status_code=303)
