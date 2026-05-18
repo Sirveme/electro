@@ -1,53 +1,60 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-theme="oscuro">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}electro{% endblock %} · PerúSistemas</title>
-  <link rel="icon" type="image/svg+xml" href="/static/img/logo.svg">
-  <link rel="stylesheet" href="/static/css/base.css">
+  <meta name="color-scheme" content="dark">
+  <title>{% block title %}electro{% endblock %} · Perú Sistemas</title>
+
+  <!-- Preload de estáticos críticos -->
+  <link rel="preload" href="/static/css/tokens.css?v=1" as="style">
+  <link rel="preload" href="/static/css/base.css?v=1" as="style">
+  <link rel="preload" href="/static/js/htmx.min.js?v=1.9.12" as="script">
+
   <link rel="stylesheet" href="/static/css/base.css?v=1">
   <link rel="stylesheet" href="/static/css/components.css?v=1">
   <link rel="stylesheet" href="/static/css/menu.css?v=1">
-  <link rel="stylesheet" href="/static/css/modal.css">
-  <link rel="stylesheet" href="/static/css/wizard.css">
-  <link rel="stylesheet" href="/static/css/padron.css">
-  <link rel="stylesheet" href="/static/css/kebab.css">
+
+  <!-- Tema: aplicar ANTES de pintar para evitar flash -->
+  <script src="/static/js/theme.js?v=1"></script>
+
   <script src="/static/js/htmx.min.js?v=1.9.12" defer></script>
   <script src="/static/js/_hyperscript.min.js?v=0.9.13" defer></script>
-  <script src="/static/js/modal.js" defer></script>
+  <script src="/static/js/password_toggle.js?v=1" defer></script>
+  <script src="/static/js/connection.js?v=1" defer></script>
 </head>
-<body hx-boost="true">
+<body hx-boost="true"
+      _="on click from elsewhere(.kebab-menu)
+           for menu in .kebab-menu
+             if not menu.parentElement.contains(event.target)
+               remove .open from menu
+             end
+           end">
+
   {% if ctx and ctx.user %}
   <header class="topbar">
     <button class="menu-trigger" aria-label="Abrir menú"
-      _="on click toggle .open on #side-menu then toggle .menu-open on body">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-        <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-      </svg>
+            _="on click add .open to #side-menu then add .open to #menu-backdrop">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
     </button>
-    <span class="brand">electro</span>
-    <span class="topbar-spacer"></span>
-    <span class="ctx-user">
-      {{ ctx.user.nombre }}
-      {% if ctx.is_superadmin %}<small class="badge badge-superadmin">SUPERADMIN</small>{% endif %}
+    <span class="brand">
+      <svg class="brand-bolt" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L4.5 14h6L9 22l8.5-12h-6L13 2z"/></svg>
+      electro
     </span>
-    <form method="post" action="/logout" class="logout-form">
-      {% include 'components/csrf_input.html' %}
-      <button type="submit" class="btn-link" title="Cerrar sesión">Salir</button>
-    </form>
+    <div class="spacer"></div>
+    <span class="conn-dot" title="Conexión"></span>
+    <span class="conn-label"></span>
+    <span class="ctx">{{ ctx.user.nombre }}</span>
   </header>
 
   {% include 'components/menu_lateral.html' %}
-  <div class="menu-backdrop"
-    _="on click remove .open from #side-menu then remove .menu-open from body"></div>
   {% endif %}
 
-  <main class="main-content{% if not (ctx and ctx.user) %} main-content--guest{% endif %}">
+  <main class="main-content">
     {% include 'components/flash_messages.html' ignore missing %}
     {% block content %}{% endblock %}
   </main>
 
-  <div id="app-modal-host"></div>
+  {% block extra_js %}{% endblock %}
 </body>
 </html>
