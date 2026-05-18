@@ -17,6 +17,7 @@ def build_context(
         return templates.TemplateResponse("foo.html", build_context(request, user=user, ...))
     """
     csrf_token = request.cookies.get(CSRF_COOKIE_NAME, "")
+    flashes = pop_flashes(request) if hasattr(request, "session") else []
     ctx = {
         "request": request,
         "ctx": {
@@ -27,8 +28,9 @@ def build_context(
             "permisos": user.permisos if user else [],
             "perfil_codigo": user.perfil_codigo if user else None,
             "csrf_token": csrf_token,
+            "flashes": flashes,
         },
-        "flashes": pop_flashes(request) if hasattr(request, "session") else [],
+        "flashes": flashes,
     }
     ctx.update(extra)
     return ctx
