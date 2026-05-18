@@ -4,8 +4,6 @@
  * Carga DESPUÉS de tokens.css.
  */
 
-@import url("/static/css/tokens.css?v=1");
-
 *,
 *::before,
 *::after {
