@@ -1,0 +1,101 @@
+/*
+ * electro — Sistema de tokens visuales
+ * Cargar PRIMERO de todos los CSS.
+ */
+
+:root,
+:root[data-theme="oscuro"] {
+  /* === Backgrounds === */
+  --bg-base: #0A1628;          /* fondo más oscuro: body */
+  --bg-soft: #0F2444;          /* fondo de área de contenido */
+  --bg-surface: #152B4D;       /* tarjetas, modales, dropdowns */
+  --bg-surface-hover: #1B3560;
+  --bg-overlay: rgba(10, 22, 40, 0.75); /* backdrop de modales */
+
+  /* === Texto === */
+  --text-strong: #F0F4FA;      /* títulos */
+  --text: #E8EEF7;             /* cuerpo */
+  --text-muted: #8B9DBF;       /* secundario */
+  --text-faint: #5C6F94;       /* placeholder, ayudas */
+
+  /* === Borders === */
+  --border: #1F3866;
+  --border-strong: #2D4F8A;
+  --border-focus: #1B4FF5;     /* azul eléctrico al focus */
+
+  /* === Brand: azul eléctrico === */
+  --primary: #1B4FF5;
+  --primary-hover: #3D6EFF;
+  --primary-active: #0B3CD8;
+  --primary-soft: rgba(27, 79, 245, 0.15);  /* fondo de badges activos */
+  --primary-text-on: #FFFFFF;
+
+  /* === Accent: naranja energía === */
+  --accent: #FF6B1A;
+  --accent-hover: #FF8540;
+  --accent-soft: rgba(255, 107, 26, 0.15);
+  --accent-text-on: #FFFFFF;
+
+  /* === Estados semánticos === */
+  --success: #16C784;
+  --success-soft: rgba(22, 199, 132, 0.15);
+  --danger: #FF4757;
+  --danger-soft: rgba(255, 71, 87, 0.15);
+  --warning: #FFB800;
+  --warning-soft: rgba(255, 184, 0, 0.15);
+  --info: #00B8D9;
+  --info-soft: rgba(0, 184, 217, 0.15);
+
+  /* === Radios === */
+  --radius-sm: 4px;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+
+  /* === Sombras (suaves, no agresivas en oscuro) === */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.4);
+
+  /* === Tipografía === */
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                 "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Consolas, "Liberation Mono", monospace;
+
+  /* === Spacing === */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-8: 48px;
+
+  /* === Transitions (cortas, no llamativas) === */
+  --transition-fast: 120ms ease-out;
+  --transition: 180ms ease-out;
+  --transition-slow: 280ms ease-out;
+
+  /* === Z-index === */
+  --z-menu: 100;
+  --z-overlay: 800;
+  --z-modal: 900;
+  --z-tooltip: 1000;
+}
+
+/* Tema atenuado: mismo esquema, menos contraste */
+:root[data-theme="atenuado"] {
+  --bg-base: #1A2840;
+  --bg-soft: #243759;
+  --bg-surface: #2D4470;
+  --bg-surface-hover: #36528A;
+  --bg-overlay: rgba(26, 40, 64, 0.75);
+
+  --text-strong: #F0F4FA;
+  --text: #DCE4F2;
+  --text-muted: #9FB0CF;
+  --text-faint: #6D80A4;
+
+  --border: #335078;
+  --border-strong: #4A6BA0;
+}
