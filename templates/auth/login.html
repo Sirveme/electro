@@ -20,7 +20,7 @@
 
     {% include 'components/flash_messages.html' ignore missing %}
 
-    <form method="post" action="/login" class="form">
+    <form method="post" action="/login" class="form" hx-boost="false">
       {% include 'components/csrf_input.html' %}
 
       <label class="form-field">
