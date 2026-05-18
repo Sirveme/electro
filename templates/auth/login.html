@@ -1,10 +1,24 @@
 {% extends 'base.html' %}
 {% block title %}Iniciar sesión{% endblock %}
 {% block content %}
+<div class="bg-bolts" aria-hidden="true">
+  <svg class="bg-bolt-1" viewBox="0 0 100 200" xmlns="http://www.w3.org/2000/svg">
+    <path d="M55 0 L20 100 L45 100 L35 200 L80 80 L55 80 L65 0 Z"/>
+  </svg>
+  <svg class="bg-bolt-2" viewBox="0 0 100 200" xmlns="http://www.w3.org/2000/svg">
+    <path d="M55 0 L20 100 L45 100 L35 200 L80 80 L55 80 L65 0 Z"/>
+  </svg>
+</div>
+
 <div class="auth-shell">
   <div class="auth-card">
-    <h1 class="auth-title">electro</h1>
+    <h1 class="auth-title">
+      <svg class="bolt" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L4.5 14h6L9 22l8.5-12h-6L13 2z"/></svg>
+      electro
+    </h1>
     <p class="auth-subtitle">Inicia sesión para continuar</p>
+
+    {% include 'components/flash_messages.html' ignore missing %}
 
     <form method="post" action="/login" class="form">
       {% include 'components/csrf_input.html' %}
@@ -12,13 +26,15 @@
       <label class="form-field">
         <span class="form-label">Usuario o DNI</span>
         <input type="text" name="usuario" required autofocus autocomplete="username"
-          value="{{ usuario_value or '' }}">
+               value="{{ usuario_value or '' }}">
       </label>
 
-      <label class="form-field">
+      <div class="form-field">
         <span class="form-label">Contraseña</span>
-        <input type="password" name="password" required autocomplete="current-password">
-      </label>
+        <div class="password-wrap">
+          <input type="password" name="password" required autocomplete="current-password">
+        </div>
+      </div>
 
       <button type="submit" class="btn btn--primary btn--block">Entrar</button>
     </form>
