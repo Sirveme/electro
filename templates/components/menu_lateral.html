@@ -43,7 +43,7 @@
   </div>
 
   <div class="side-menu-section">
-    <form method="post" action="/logout" class="logout-form" style="padding: 10px var(--space-4)">
+    <form method="post" action="/logout" class="logout-form" style="padding: 10px var(--space-4)" class="form" hx-boost="false">
       {% include 'components/csrf_input.html' %}
       <button type="submit" class="btn btn--ghost btn--block">Salir</button>
     </form>
