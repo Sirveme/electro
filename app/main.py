@@ -9,6 +9,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.config import settings
 from app.dependencies import RedirectException
 from app.jinja_filters import register_filters
+from app.middleware.csrf_cookie import CSRFCookieMiddleware
 from app.routes import auth as auth_routes
 from app.routes.superadmin import dashboard as sa_dashboard
 from app.routes.superadmin import municipios as sa_municipios
@@ -41,6 +42,7 @@ app.add_middleware(
     same_site="lax",
     https_only=(settings.ENVIRONMENT == "production"),
 )
+app.add_middleware(CSRFCookieMiddleware)
 
 
 @app.exception_handler(RedirectException)

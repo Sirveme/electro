@@ -16,7 +16,9 @@ def build_context(
     Uso en una ruta:
         return templates.TemplateResponse("foo.html", build_context(request, user=user, ...))
     """
-    csrf_token = request.cookies.get(CSRF_COOKIE_NAME, "")
+    # Prioridad: request.state (token generado en este request por el middleware)
+    # fallback: cookie existente (request con cookie previa)
+    csrf_token = getattr(request.state, "csrf_token", None) or request.cookies.get(CSRF_COOKIE_NAME, "")
     flashes = pop_flashes(request) if hasattr(request, "session") else []
     ctx = {
         "request": request,
