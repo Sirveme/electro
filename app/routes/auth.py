@@ -20,7 +20,7 @@ from app.security import (
     needs_rehash,
     verify_password,
 )
-from app.services.csrf import ensure_csrf_cookie, verify_csrf
+from app.services.csrf import verify_csrf
 from app.utils.flash import set_flash
 
 logger = logging.getLogger(__name__)
@@ -33,12 +33,10 @@ def _templates(request: Request):
 
 @router.get("/login", response_class=HTMLResponse)
 async def login_form(request: Request):
-    response = _templates(request).TemplateResponse(
+    return _templates(request).TemplateResponse(
         "auth/login.html",
         build_context(request, user=None),
     )
-    ensure_csrf_cookie(request, response)
-    return response
 
 
 @router.post("/login", dependencies=[Depends(verify_csrf)])
@@ -115,13 +113,11 @@ async def login_submit(
                     return RedirectResponse("/app/", status_code=303)
 
     set_flash(request, "error", "Credenciales invalidas.")
-    response = _templates(request).TemplateResponse(
+    return _templates(request).TemplateResponse(
         "auth/login.html",
         build_context(request, user=None, usuario_value=usuario_n),
         status_code=401,
     )
-    ensure_csrf_cookie(request, response)
-    return response
 
 
 @router.post("/logout", dependencies=[Depends(verify_csrf)])
