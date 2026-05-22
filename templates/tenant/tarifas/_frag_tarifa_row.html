@@ -10,12 +10,19 @@
   <td>
     <form hx-post="/app/tarifas/{{ item.origen }}/{{ item.codigo }}/tarifa"
           hx-target="closest tr" hx-swap="outerHTML"
-          class="tarifa-inline-form">
+          class="tarifa-inline-form"
+          _="on submit
+              if (my querySelector('input[name=tarifa]')).value == (my querySelector('input[name=tarifa]')).dataset.original
+                halt the event
+              end">
       {% include 'components/csrf_input.html' %}
       <input type="number" name="tarifa" step="0.01" min="0"
              value="{{ '%.2f' | format(item.tarifa or 0) }}"
-             _="on blur if my value != my dataset.original then send submit to closest form end"
-             data-original="{{ '%.2f' | format(item.tarifa or 0) }}">
+             data-original="{{ '%.2f' | format(item.tarifa or 0) }}"
+             _="on change trigger submit on closest <form/>
+                on keydown[key=='Enter']
+                  halt the event
+                  trigger submit on closest <form/>">
     </form>
   </td>
   <td>
@@ -23,9 +30,16 @@
           hx-target="closest tr" hx-swap="outerHTML"
           class="tarifa-toggle-form">
       {% include 'components/csrf_input.html' %}
-      <button type="submit" class="toggle-switch {{ 'is-on' if item.habilitado else 'is-off' }}"
-              aria-label="{{ 'Deshabilitar' if item.habilitado else 'Habilitar' }}">
-        <span class="toggle-knob"></span>
+      <button type="submit"
+              class="toggle-switch {{ 'is-on' if item.habilitado else 'is-off' }}"
+              role="switch"
+              aria-checked="{{ 'true' if item.habilitado else 'false' }}"
+              aria-label="{{ 'Habilitado, clic para deshabilitar' if item.habilitado else 'Deshabilitado, clic para habilitar' }}"
+              title="{{ 'Habilitado' if item.habilitado else 'Deshabilitado' }}">
+        <span class="toggle-track" aria-hidden="true">
+          <span class="toggle-knob"></span>
+        </span>
+        <span class="toggle-label">{{ 'Sí' if item.habilitado else 'No' }}</span>
       </button>
     </form>
   </td>
