@@ -36,11 +36,23 @@ class EmpadronamientoError(Exception):
     pass
 
 
+def _parse_fecha(value) -> Optional[date]:
+    """
+    Convierte string ISO 'YYYY-MM-DD' a objeto date.
+    Acepta str, date o None. Retorna None si no se puede parsear.
+    asyncpg exige date real para columnas DATE; strings dan AttributeError.
+    """
+    if not value:
+        return None
+    if isinstance(value, date):
+        return value
+    try:
+        return date.fromisoformat(str(value).strip())
+    except (ValueError, AttributeError):
+        return None
+
+
 def _next_codigo_query() -> str:
-    """
-    Devuelve la query SQL para calcular el siguiente correlativo V-NNNN.
-    Se aísla aquí para mantener el regex en un solo lugar.
-    """
     return (
         "SELECT COALESCE(MAX(CAST(SUBSTRING(codigo_interno FROM 'V-(\\d+)') AS INT)), 0) + 1 "
         "AS siguiente FROM viviendas"
@@ -58,18 +70,6 @@ async def crear_vivienda_completa(
     foto_fachada_bytes: bytes,
     foto_fachada_content_type: str = "image/jpeg",
 ) -> dict:
-    """
-    Crea una vivienda completa en una transacción.
-
-    `datos_vivienda`: dict con comunidad_id, referente_id, fuente_validacion, referencia_fisica,
-                     direccion_textual, gps_lat, gps_lng, gps_precision_metros.
-    `jefe_familia`: dict con dni, nombre_completo, fecha_nacimiento, sexo, telefono, acceso_portal.
-    `segundo_morador`: mismo formato que jefe (sin acceso_portal) o None.
-    `artefactos`: lista de {origen, codigo, cantidad}. cantidad debe ser > 0; filtramos en la entrada.
-    `foto_fachada_bytes`: bytes JPEG ya comprimidos (en el cliente). Puede ser None/vacío.
-
-    Retorna: {vivienda_id, codigo_interno, foto_url}.
-    """
     ubigeo = schema_name.removeprefix("muni_")
     foto_uploaded = False
     foto_path: Optional[str] = None
@@ -99,7 +99,7 @@ async def crear_vivienda_completa(
             continue
         artefactos_validos.append({"origen": origen, "codigo": str(codigo), "cantidad": cant})
 
-    # 1. Subir foto a GCS (antes de la transacción SQL; si falla aquí, todavía no tocamos BD)
+    # 1. Subir foto a GCS
     if foto_fachada_bytes:
         try:
             uploader = get_gcs_uploader()
@@ -171,7 +171,7 @@ async def crear_vivienda_completa(
                 "v": vivienda_id,
                 "d": jefe_familia["dni"],
                 "n": jefe_familia["nombre_completo"],
-                "fn": jefe_familia.get("fecha_nacimiento"),
+                "fn": _parse_fecha(jefe_familia.get("fecha_nacimiento")),
                 "sx": jefe_familia.get("sexo"),
                 "tel": jefe_familia.get("telefono"),
                 "ap": bool(jefe_familia.get("acceso_portal")),
@@ -196,7 +196,7 @@ async def crear_vivienda_completa(
                     "v": vivienda_id,
                     "d": segundo_morador["dni"],
                     "n": segundo_morador["nombre_completo"],
-                    "fn": segundo_morador.get("fecha_nacimiento"),
+                    "fn": _parse_fecha(segundo_morador.get("fecha_nacimiento")),
                     "sx": segundo_morador.get("sexo"),
                     "tel": segundo_morador.get("telefono"),
                 },
