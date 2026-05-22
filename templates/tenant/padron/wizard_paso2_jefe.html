@@ -12,22 +12,39 @@
   <h1 class="page-title">Jefe de familia</h1>
 
   <div class="dni-scanner-block">
-    <button type="button" class="btn btn--primary btn--lg" id="btn-escanear-dni"
-      _="on click call window.dniScanner.scan(window.onDniScanned, window.onDniTimeout, 8000)">
-      📷 Escanear DNI
-    </button>
-    <p class="muted">O ingresa los datos manualmente abajo.</p>
-    <video id="dni-video" autoplay muted playsinline style="display:none; max-width:100%; border-radius:8px;"></video>
-    <div id="dni-status" class="muted" aria-live="polite"></div>
-    <button type="button" id="btn-foto-dni" class="btn btn--ghost" style="display:none"
-      _="on click
-          set #dni-input-file.value to ''
-          call #dni-input-file.click()">📸 Tomar foto del frente del DNI</button>
-    <input type="file" id="dni-input-file" accept="image/*" capture="environment" style="display:none"
-      _="on change call window.onDniPhotoCaptured(event.target.files[0])">
+    <p class="muted">Toca el botón para escanear el código de barras del reverso del DNI, o ingresa los datos manualmente abajo.</p>
+
+    <div id="dni-buttons">
+      <button type="button" class="btn btn--primary btn--lg" id="btn-escanear-dni"
+        _="on click call window.iniciarEscaneoDNI()">
+        📷 Escanear DNI
+      </button>
+    </div>
+
+    <div id="dni-camera-block" style="display:none; margin-top:1rem;">
+      <video id="dni-video" autoplay muted playsinline
+        style="width:100%; max-width:480px; border-radius:8px; background:#000;"></video>
+      <div id="dni-status" class="muted" aria-live="polite" style="margin-top:0.5rem;">
+        Apunta al reverso del DNI (lado del código de barras)...
+      </div>
+      <button type="button" class="btn btn--ghost" style="margin-top:0.5rem;"
+        _="on click call window.cancelarEscaneoDNI()">
+        ✕ Cancelar
+      </button>
+    </div>
+
+    <div id="dni-fallback-block" style="display:none; margin-top:1rem;">
+      <p class="muted">No se pudo leer el código del reverso. Puedes tomar una foto del frente del DNI:</p>
+      <button type="button" class="btn btn--ghost" id="btn-foto-dni"
+        _="on click
+            set #dni-input-file.value to ''
+            call #dni-input-file.click()">📸 Foto del frente del DNI</button>
+      <input type="file" id="dni-input-file" accept="image/*" capture="environment" style="display:none"
+        _="on change call window.onDniPhotoCaptured(event.target.files[0])">
+    </div>
   </div>
 
-  <form method="post" action="/app/padron/nuevo/paso2" class="form" id="form-jefe">
+  <form method="post" action="/app/padron/nuevo/paso2" class="form" id="form-jefe" style="margin-top:1.5rem;">
     {% include 'components/csrf_input.html' %}
 
     <label class="form-field">
@@ -74,36 +91,98 @@
     </div>
   </form>
 </section>
+
 <script src="/static/js/zxing.min.js" defer></script>
 <script src="/static/js/dni_scanner.js" defer></script>
+<script src="/static/js/image_compress.js" defer></script>
 <script>
-  // Llenado del formulario tras escaneo exitoso o Vision exitoso.
+  // === Ciclo de vida del escaneo DNI ===
+
+  window.iniciarEscaneoDNI = function() {
+    // Mostrar bloque de cámara, ocultar botón inicial
+    document.getElementById('dni-buttons').style.display = 'none';
+    document.getElementById('dni-camera-block').style.display = 'block';
+    document.getElementById('dni-fallback-block').style.display = 'none';
+    document.getElementById('dni-status').textContent = 'Apunta al reverso del DNI (lado del código de barras)...';
+
+    // Iniciar scanner
+    var videoEl = document.getElementById('dni-video');
+    window.dniScanner.scan({
+      videoEl: videoEl,
+      onSuccess: function(d) {
+        window.dniScanner.stop();
+        document.getElementById('dni-camera-block').style.display = 'none';
+        document.getElementById('dni-buttons').style.display = 'block';
+        window.onDniScanned(d);
+      },
+      onTimeout: function() {
+        window.dniScanner.stop();
+        document.getElementById('dni-camera-block').style.display = 'none';
+        document.getElementById('dni-fallback-block').style.display = 'block';
+        document.getElementById('dni-buttons').style.display = 'block';
+        document.getElementById('dni-status').textContent = '';
+      },
+      onError: function(err) {
+        window.dniScanner.stop();
+        document.getElementById('dni-camera-block').style.display = 'none';
+        document.getElementById('dni-buttons').style.display = 'block';
+        window.appModal.alert('No se pudo abrir la cámara',
+          (err && err.message) || 'Verifica permisos del navegador',
+          {tipo:'error'});
+      },
+      timeoutMs: 8000,
+    });
+  };
+
+  window.cancelarEscaneoDNI = function() {
+    window.dniScanner.stop();
+    document.getElementById('dni-camera-block').style.display = 'none';
+    document.getElementById('dni-buttons').style.display = 'block';
+    document.getElementById('dni-status').textContent = '';
+  };
+
+  // === Llenado del formulario con datos detectados ===
+
   window.onDniScanned = function(d) {
     if (d.dni) document.getElementById('jefe-dni').value = d.dni;
     if (d.nombres || d.paterno || d.materno) {
       var nombre = [d.nombres, d.paterno, d.materno].filter(Boolean).join(' ');
-      if (nombre) document.getElementById('jefe-nombre').value = nombre;
+      if (nombre) document.getElementById('jefe-nombre').value = nombre.trim();
     }
     if (d.fecha_nac) document.getElementById('jefe-fnac').value = d.fecha_nac;
     if (d.sexo) document.getElementById('jefe-sexo').value = d.sexo;
-    document.getElementById('dni-status').textContent = 'DNI leído. Revisa los datos antes de continuar.';
+    window.appModal.alert('DNI leído',
+      'Revisa los datos antes de continuar y corrige si es necesario.',
+      {tipo:'success'});
   };
-  window.onDniTimeout = function() {
-    document.getElementById('dni-status').textContent = 'No se pudo leer el código del reverso. Toma una foto del frente.';
-    document.getElementById('btn-foto-dni').style.display = 'inline-flex';
-  };
+
+  // === Fallback: foto del frente → Vision ===
+
   window.onDniPhotoCaptured = async function(file) {
     if (!file) return;
     document.getElementById('dni-status').textContent = 'Procesando foto del DNI...';
-    var compressed = await window.imageCompress.fromFile(file, {maxWidth: 1280, quality: 0.85});
-    var fd = new FormData();
-    fd.append('imagen', compressed, 'dni.jpg');
-    var csrf = document.querySelector('input[name="_csrf"]').value;
+    document.getElementById('dni-fallback-block').style.display = 'block';
+
     try {
+      var compressed = await window.imageCompress.fromFile(file, {maxWidth: 1280, quality: 0.85});
+      var csrf = document.querySelector('input[name="_csrf"]').value;
+
+      var fd = new FormData();
+      fd.append('imagen', compressed, 'dni.jpg');     // ← 'imagen', no 'image'
+      fd.append('_csrf', csrf);                        // ← CSRF en form, no en header
+
       var r = await fetch('/app/api/dni/extract', {
-        method: 'POST', body: fd, headers: {'X-CSRF-Token': csrf}
+        method: 'POST',
+        body: fd
+        // sin headers manuales; el navegador pone el boundary multipart automáticamente
       });
-      if (!r.ok) { throw new Error('HTTP ' + r.status); }
+
+      if (!r.ok) {
+        var msg = 'HTTP ' + r.status;
+        try { var err = await r.json(); if (err.detail) msg = err.detail; } catch(_) {}
+        throw new Error(msg);
+      }
+
       var data = await r.json();
       window.onDniScanned({
         dni: data.dni,
@@ -114,9 +193,8 @@
         sexo: data.sexo
       });
     } catch (e) {
-      window.appModal.alert('Error extrayendo DNI', e.message, {tipo:'error'});
+      window.appModal.alert('Error extrayendo DNI', e.message || 'Intenta de nuevo', {tipo:'error'});
     }
   };
 </script>
-<script src="/static/js/image_compress.js" defer></script>
 {% endblock %}
