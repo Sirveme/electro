@@ -4,6 +4,12 @@ edición y baja de artefactos.
 
 El wizard guarda progreso parcial en request.session['empadronamiento'] y
 solo escribe a la BD en el paso 4 a través de empadronamiento_service.
+
+IMPORTANTE sobre el orden de rutas:
+FastAPI evalúa las rutas en el orden en que se declaran. Las rutas con
+segmentos literales (/nuevo, /{codigo}/inventario/...) DEBEN declararse
+ANTES que las rutas con parámetros dinámicos (/{codigo}), sino /nuevo
+matchea con /{codigo} y trata "nuevo" como un código de vivienda.
 """
 import json
 import logging
@@ -116,82 +122,7 @@ async def listar(
     )
 
 
-# ---------- ficha ----------
-
-@router.get("/{codigo}", response_class=HTMLResponse)
-async def ficha(
-    request: Request,
-    codigo: str,
-    user: CurrentUser = Depends(require_password_changed),
-):
-    if not user.puede("padron", "viviendas", "ver"):
-        raise HTTPException(403, "Sin permiso")
-    async with tenant_session(user.tenant_schema) as ts:
-        vivienda = (
-            await ts.execute(
-                text(
-                    "SELECT v.*, c.nombre AS comunidad_nombre, "
-                    "       r.nombre_completo AS referente_nombre "
-                    "FROM viviendas v LEFT JOIN comunidades c ON c.id = v.comunidad_id "
-                    "LEFT JOIN referentes r ON r.id = v.referente_id "
-                    "WHERE v.codigo_interno = :c"
-                ),
-                {"c": codigo},
-            )
-        ).first()
-        if not vivienda:
-            raise HTTPException(404, "Vivienda no encontrada")
-
-        moradores = (
-            await ts.execute(
-                text(
-                    "SELECT id, dni, nombre_completo, fecha_nacimiento, sexo, telefono, "
-                    "       es_jefe_familia, es_responsable_pago, acceso_portal, activo "
-                    "FROM moradores WHERE vivienda_id = :v AND activo = TRUE "
-                    "ORDER BY es_jefe_familia DESC, nombre_completo"
-                ),
-                {"v": vivienda.id},
-            )
-        ).all()
-
-        inv_actual = await inventario_actual_de_vivienda(ts, vivienda.id)
-
-        historico = (
-            await ts.execute(
-                text(
-                    "SELECT id, artefacto_nombre_snapshot, cantidad, vigente_desde, "
-                    "       vigente_hasta, motivo_baja "
-                    "FROM vivienda_inventario "
-                    "WHERE vivienda_id = :v AND vigente_hasta IS NOT NULL "
-                    "ORDER BY vigente_hasta DESC LIMIT 50"
-                ),
-                {"v": vivienda.id},
-            )
-        ).all()
-
-        eventos = (
-            await ts.execute(
-                text(
-                    "SELECT tipo, descripcion, created_at FROM vivienda_eventos "
-                    "WHERE vivienda_id = :v ORDER BY created_at DESC LIMIT 50"
-                ),
-                {"v": vivienda.id},
-            )
-        ).all()
-
-    return request.app.state.templates.TemplateResponse(
-        "tenant/padron/ficha.html",
-        build_context(
-            request, user=user,
-            vivienda=vivienda, moradores=moradores,
-            inventario_actual=inv_actual, inventario_historico=historico,
-            eventos=eventos,
-            motivos_baja=MOTIVOS_BAJA,
-        ),
-    )
-
-
-# ---------- wizard ----------
+# ---------- wizard (rutas literales — VAN ANTES de /{codigo}) ----------
 
 def _wizard_session(request: Request) -> dict:
     return request.session.get(SESSION_KEY, {"paso": 1, "datos": {}})
@@ -508,7 +439,8 @@ async def wizard_paso4_submit(
     return RedirectResponse(f"/app/padron/{result['codigo_interno']}", status_code=303)
 
 
-# ---------- baja artefacto ----------
+# ---------- baja artefacto (ruta literal después de /{codigo}/... — Python evalúa
+#           prefijos más específicos primero, pero por consistencia, va aquí) ----------
 
 @router.post("/{codigo}/inventario/{inv_id}/baja", dependencies=[Depends(verify_csrf)])
 async def baja_artefacto(
@@ -533,3 +465,78 @@ async def baja_artefacto(
             return RedirectResponse(f"/app/padron/{codigo}", status_code=303)
     set_flash(request, "success", "Artefacto dado de baja.")
     return RedirectResponse(f"/app/padron/{codigo}", status_code=303)
+
+
+# ---------- ficha (ruta dinámica /{codigo} — VA AL FINAL) ----------
+
+@router.get("/{codigo}", response_class=HTMLResponse)
+async def ficha(
+    request: Request,
+    codigo: str,
+    user: CurrentUser = Depends(require_password_changed),
+):
+    if not user.puede("padron", "viviendas", "ver"):
+        raise HTTPException(403, "Sin permiso")
+    async with tenant_session(user.tenant_schema) as ts:
+        vivienda = (
+            await ts.execute(
+                text(
+                    "SELECT v.*, c.nombre AS comunidad_nombre, "
+                    "       r.nombre_completo AS referente_nombre "
+                    "FROM viviendas v LEFT JOIN comunidades c ON c.id = v.comunidad_id "
+                    "LEFT JOIN referentes r ON r.id = v.referente_id "
+                    "WHERE v.codigo_interno = :c"
+                ),
+                {"c": codigo},
+            )
+        ).first()
+        if not vivienda:
+            raise HTTPException(404, "Vivienda no encontrada")
+
+        moradores = (
+            await ts.execute(
+                text(
+                    "SELECT id, dni, nombre_completo, fecha_nacimiento, sexo, telefono, "
+                    "       es_jefe_familia, es_responsable_pago, acceso_portal, activo "
+                    "FROM moradores WHERE vivienda_id = :v AND activo = TRUE "
+                    "ORDER BY es_jefe_familia DESC, nombre_completo"
+                ),
+                {"v": vivienda.id},
+            )
+        ).all()
+
+        inv_actual = await inventario_actual_de_vivienda(ts, vivienda.id)
+
+        historico = (
+            await ts.execute(
+                text(
+                    "SELECT id, artefacto_nombre_snapshot, cantidad, vigente_desde, "
+                    "       vigente_hasta, motivo_baja "
+                    "FROM vivienda_inventario "
+                    "WHERE vivienda_id = :v AND vigente_hasta IS NOT NULL "
+                    "ORDER BY vigente_hasta DESC LIMIT 50"
+                ),
+                {"v": vivienda.id},
+            )
+        ).all()
+
+        eventos = (
+            await ts.execute(
+                text(
+                    "SELECT tipo, descripcion, created_at FROM vivienda_eventos "
+                    "WHERE vivienda_id = :v ORDER BY created_at DESC LIMIT 50"
+                ),
+                {"v": vivienda.id},
+            )
+        ).all()
+
+    return request.app.state.templates.TemplateResponse(
+        "tenant/padron/ficha.html",
+        build_context(
+            request, user=user,
+            vivienda=vivienda, moradores=moradores,
+            inventario_actual=inv_actual, inventario_historico=historico,
+            eventos=eventos,
+            motivos_baja=MOTIVOS_BAJA,
+        ),
+    )
