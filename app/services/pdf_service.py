@@ -33,6 +33,9 @@ class PdfRenderer:
     def render_comprobante_pago(self, env, ctx: dict[str, Any]) -> bytes:
         raise NotImplementedError
 
+    def render_html_to_pdf(self, html: str) -> bytes:
+        raise NotImplementedError
+
 
 class WeasyPrintRenderer(PdfRenderer):
     kind = "weasyprint"
@@ -47,6 +50,9 @@ class WeasyPrintRenderer(PdfRenderer):
 
     def render_comprobante_pago(self, env, ctx: dict[str, Any]) -> bytes:
         html = render_template(env, "tenant/recibos_pdf/comprobante_pago.html", ctx)
+        return self._HTML(string=html, base_url=".").write_pdf()
+
+    def render_html_to_pdf(self, html: str) -> bytes:
         return self._HTML(string=html, base_url=".").write_pdf()
 
 
@@ -170,6 +176,65 @@ class ReportLabRenderer(PdfRenderer):
         c.drawString(20, 14, "Comprobante interno. Conserve este documento.")
 
         c.showPage()
+        c.save()
+        return buf.getvalue()
+
+    def render_html_to_pdf(self, html: str) -> bytes:
+        """
+        Fallback simple cuando WeasyPrint no está disponible:
+        extrae el texto plano del HTML y lo imprime en una hoja carta.
+        Suficiente para que los reportes "siempre" exporten algo.
+        """
+        from html.parser import HTMLParser
+        from reportlab.lib.pagesizes import letter as _letter
+
+        class TextExtractor(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.lines: list[str] = []
+                self._skip_depth = 0
+                self._buf: list[str] = []
+
+            def handle_starttag(self, tag, attrs):
+                if tag in ("script", "style"):
+                    self._skip_depth += 1
+                if tag in ("br", "tr", "li", "p", "h1", "h2", "h3", "div"):
+                    self._flush()
+
+            def handle_endtag(self, tag):
+                if tag in ("script", "style") and self._skip_depth > 0:
+                    self._skip_depth -= 1
+                if tag in ("tr", "li", "p", "h1", "h2", "h3", "div"):
+                    self._flush()
+
+            def handle_data(self, data):
+                if self._skip_depth > 0:
+                    return
+                if data.strip():
+                    self._buf.append(data.strip())
+
+            def _flush(self):
+                if self._buf:
+                    self.lines.append(" ".join(self._buf))
+                    self._buf = []
+
+        parser = TextExtractor()
+        parser.feed(html)
+        parser._flush()
+
+        buf = io.BytesIO()
+        page_w, page_h = _letter
+        c = self._canvas.Canvas(buf, pagesize=_letter)
+        y = page_h - 40
+        c.setFont("Helvetica", 9)
+        for line in parser.lines:
+            for chunk_start in range(0, len(line), 110):
+                c.drawString(40, y, line[chunk_start:chunk_start + 110])
+                y -= 12
+                if y < 40:
+                    c.showPage()
+                    c.setFont("Helvetica", 9)
+                    y = page_h - 40
         c.save()
         return buf.getvalue()
 
