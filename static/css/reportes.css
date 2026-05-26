@@ -1,0 +1,196 @@
+/* electro — reportes.css
+   Estilos exclusivos del módulo de Reportes:
+   - Grid de cards en el hub
+   - Filtros de cada reporte
+   - KPIs grandes del dashboard
+   - Tabla "reporte" (ancho, sticky header)
+   - Print/PDF mode (oculta menú lateral y botones)
+*/
+
+/* ============ Hub ============ */
+.reportes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+
+.reporte-card {
+  display: block;
+  padding: var(--space-4);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color var(--transition), transform var(--transition);
+}
+
+.reporte-card:hover {
+  border-color: var(--primary);
+  transform: translateY(-2px);
+}
+
+.reporte-card h2 {
+  margin: 0 0 var(--space-2) 0;
+  font-size: 1.05rem;
+  color: var(--text-strong);
+}
+
+.reporte-card p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.92rem;
+}
+
+.reporte-card--featured {
+  border-color: var(--primary);
+  background: linear-gradient(135deg, var(--bg-surface), var(--bg-soft));
+}
+
+/* ============ Header de página de reporte ============ */
+.reporte-page .page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.export-buttons {
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* ============ Filtros ============ */
+.filters {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin: var(--space-3) 0 var(--space-4) 0;
+  align-items: center;
+}
+
+.filters select,
+.filters input {
+  padding: 6px 10px;
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.filters select:focus,
+.filters input:focus {
+  outline: none;
+  border-color: var(--border-focus);
+}
+
+/* ============ Tabla de reporte ============ */
+.reporte-table {
+  font-size: 0.92rem;
+}
+
+.reporte-table th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-surface);
+  z-index: 1;
+}
+
+.reporte-table td.right,
+.reporte-table th.right,
+.table .right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============ Dashboard (KPIs grandes) ============ */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-3);
+  margin: var(--space-4) 0;
+}
+
+.kpi-card {
+  padding: var(--space-4);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  text-align: center;
+}
+
+.kpi-card--accent {
+  background: linear-gradient(135deg, var(--primary), var(--primary-active));
+  color: var(--primary-text-on);
+  border-color: var(--primary);
+}
+
+.kpi-label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-2);
+}
+
+.kpi-card--accent .kpi-label {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.kpi-value {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: var(--text-strong);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.kpi-card--accent .kpi-value {
+  color: #fff;
+}
+
+.dashboard-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.dashboard-col h2 {
+  font-size: 1.05rem;
+  margin-bottom: var(--space-2);
+}
+
+.dashboard-section {
+  margin: var(--space-4) 0;
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.dashboard-section h2 {
+  margin-top: 0;
+  font-size: 1.05rem;
+  color: var(--text-strong);
+}
+
+/* ============ Print / PDF ============ */
+@media print {
+  .topbar,
+  .side-menu,
+  .side-menu-backdrop,
+  .filters,
+  .export-buttons,
+  .menu-trigger { display: none !important; }
+  .main-content { padding: 0 !important; margin: 0 !important; }
+  body { background: white !important; color: black !important; }
+  .table, .reporte-table {
+    color: black !important;
+    background: white !important;
+  }
+  .reporte-table th { background: #eee !important; color: black !important; }
+}
