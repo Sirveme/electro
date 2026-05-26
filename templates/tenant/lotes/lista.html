@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% block title %}Lotes de facturación{% endblock %}
+{% block content %}
+<section class="page">
+  <div class="page-header">
+    <h1 class="page-title">Lotes de facturación</h1>
+    {% if ctx.user | puede('lotes', 'facturacion', 'generar') %}
+      <a href="/app/cobranza/lotes/nuevo" class="btn btn--primary">+ Generar lote del mes</a>
+    {% endif %}
+  </div>
+
+  {% if lotes | length == 0 %}
+    <div class="empty-state">
+      <p>Aún no se ha generado ningún lote.</p>
+    </div>
+  {% else %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Periodo</th>
+            <th>Emisión</th>
+            <th>Vencimiento</th>
+            <th>Recibos OK / Fallidos</th>
+            <th>Emitido</th>
+            <th>Subsidiado</th>
+            <th>Estado</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for l in lotes %}
+          <tr>
+            <td><code>{{ l.id }}</code></td>
+            <td>{{ nombre_periodo(l.periodo_anio, l.periodo_mes) }}</td>
+            <td class="muted">{{ l.fecha_emision }}</td>
+            <td class="muted">{{ l.fecha_vencimiento }}</td>
+            <td>{{ l.total_recibos_generados }} / {{ l.total_recibos_fallidos }}</td>
+            <td>S/ {{ '%.2f' | format(l.monto_total_emitido | float) }}</td>
+            <td class="muted">S/ {{ '%.2f' | format(l.monto_total_subsidiado | float) }}</td>
+            <td>
+              {% if l.estado == 'activo' %}
+                <span class="badge badge-ok">Activo</span>
+              {% elif l.estado == 'anulado' %}
+                <span class="badge badge-off">Anulado</span>
+              {% else %}
+                <span class="badge">{{ l.estado }}</span>
+              {% endif %}
+            </td>
+            <td><a href="/app/cobranza/lotes/{{ l.id }}" class="btn-link">Ver</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

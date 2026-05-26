@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block title %}Subsidio {{ subsidio.nombre }}{% endblock %}
+{% block content %}
+<section class="page">
+  <div class="page-header">
+    <h1 class="page-title">{{ subsidio.nombre }}</h1>
+    <a href="/app/subsidios/" class="btn btn--ghost">← Volver</a>
+  </div>
+
+  <div class="card">
+    <p><strong>Porcentaje:</strong> {{ subsidio.porcentaje }}%</p>
+    <p><strong>Base legal:</strong> {{ subsidio.base_legal }}</p>
+    <p><strong>Vigente desde:</strong> {{ subsidio.vigente_desde }}</p>
+    {% if subsidio.vigente_hasta %}
+      <p><strong>Vigente hasta:</strong> {{ subsidio.vigente_hasta }}</p>
+    {% endif %}
+    {% if subsidio.motivo_suspension %}
+      <p><strong>Motivo de suspensión:</strong> {{ subsidio.motivo_suspension }}</p>
+    {% endif %}
+    {% if subsidio.observaciones %}
+      <p><strong>Observaciones:</strong> {{ subsidio.observaciones }}</p>
+    {% endif %}
+    <p><strong>Comunidades:</strong>
+      {% if subsidio.comunidad_nombres %}{{ subsidio.comunidad_nombres | join(', ') }}{% else %}(ninguna){% endif %}
+    </p>
+  </div>
+
+  {% set vigente = (not subsidio.vigente_hasta) or (subsidio.vigente_hasta >= today) %}
+  {% if vigente and (ctx.user | puede('subsidios', 'config', 'suspender')) %}
+  <form method="post" action="/app/subsidios/{{ subsidio.id }}/suspender" class="form" id="form-suspender"
+    _="on submit
+        halt the event
+        call appModal.confirm(
+          'Suspender subsidio',
+          'Al suspender, los nuevos recibos no aplicaran este subsidio. Los recibos ya emitidos NO se modifican. Continuar?',
+          {danger: true, okText: 'Si, suspender'})
+        then if it then call event.target.submit() end">
+    {% include 'components/csrf_input.html' %}
+    <label class="form-field">
+      <span class="form-label">Motivo de suspensión</span>
+      <input type="text" name="motivo" required maxlength="200" placeholder="Ej: Cambio de Ordenanza">
+    </label>
+    <div class="form-actions">
+      <button type="submit" class="btn btn--danger">Suspender subsidio</button>
+    </div>
+  </form>
+  {% endif %}
+</section>
+{% endblock %}

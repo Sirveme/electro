@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Comprobante de pago #{{ '%06d' | format(pago.id) }}</title>
+  <style>
+    @page { size: Letter; margin: 14mm 12mm; }
+    body { font-family: 'Helvetica', Arial, sans-serif; font-size: 9pt; color: #111; }
+    .wrap { max-width: 100%; }
+    .head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #111; padding-bottom: 6pt; }
+    .head h1 { margin: 0; font-size: 14pt; }
+    .head .muni { font-size: 10pt; font-weight: bold; }
+    .meta { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4pt 12pt; margin-top: 8pt; }
+    .meta b { display: inline-block; min-width: 80pt; }
+    .monto-box { margin-top: 14pt; padding: 8pt 12pt; background: #f0f7ff; border: 2px solid #0958d9; text-align: center; }
+    .monto-box .label { font-size: 9pt; color: #555; }
+    .monto-box .value { font-size: 22pt; font-weight: bold; color: #0958d9; }
+    .sub { margin-top: 10pt; font-size: 8.5pt; }
+    .sub td { padding: 2pt 4pt; border: none; }
+    .footer { margin-top: 16pt; font-size: 7.5pt; color: #888; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="head">
+      <div>
+        <div class="muni">{{ municipio_nombre }}</div>
+        <div>Comprobante de pago</div>
+      </div>
+      <div style="text-align:right">
+        <h1>#{{ '%06d' | format(pago.id) }}</h1>
+        <div>{{ pago.fecha_pago.strftime('%Y-%m-%d %H:%M') }}</div>
+      </div>
+    </div>
+
+    <div class="meta">
+      <div><b>Recibo:</b> {{ cuota.numero_recibo }}</div>
+      <div><b>Periodo:</b> {{ periodo_label }}</div>
+      <div><b>Vivienda:</b> {{ vivienda.codigo_interno }}</div>
+      <div><b>Comunidad:</b> {{ vivienda.comunidad_nombre or '—' }}</div>
+      <div><b>Referencia:</b> {{ vivienda.referencia_fisica or '' }}</div>
+      <div><b>Método:</b> {{ pago.metodo }}{% if pago.referencia_externa %} · {{ pago.referencia_externa }}{% endif %}</div>
+      <div><b>Cajero:</b> {{ cajero_nombre }}</div>
+    </div>
+
+    <div class="monto-box">
+      <div class="label">MONTO COBRADO</div>
+      <div class="value">S/ {{ '%.2f' | format(pago.monto | float) }}</div>
+    </div>
+
+    <table class="sub">
+      <tr><td>Total del recibo:</td><td>S/ {{ '%.2f' | format(cuota.total | float) }}</td></tr>
+      <tr><td>Pagado acumulado:</td><td>S/ {{ '%.2f' | format(cuota.monto_pagado | float) }}</td></tr>
+      <tr><td>Saldo pendiente:</td><td><strong>S/ {{ '%.2f' | format(cuota.saldo_pendiente | float) }}</strong></td></tr>
+    </table>
+
+    {% if pago.observaciones %}
+      <p><b>Observaciones:</b> {{ pago.observaciones }}</p>
+    {% endif %}
+
+    <div class="footer">
+      Comprobante interno. Conserve este documento.
+    </div>
+  </div>
+</body>
+</html>

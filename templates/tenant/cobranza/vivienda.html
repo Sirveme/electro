@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+{% block title %}Vivienda {{ vivienda.codigo_interno }}{% endblock %}
+{% block content %}
+<section class="page">
+  <div class="page-header">
+    <h1 class="page-title">Cobranza · <code>{{ vivienda.codigo_interno }}</code></h1>
+    <a href="/app/cobranza/buscar" class="btn btn--ghost">Buscar otra</a>
+  </div>
+
+  <div class="card">
+    <p><strong>{{ vivienda.jefe_nombre or '—' }}</strong>{% if vivienda.jefe_dni %} · DNI {{ vivienda.jefe_dni }}{% endif %}</p>
+    <p class="muted">{{ vivienda.comunidad_nombre or 'Sin comunidad' }} · {{ vivienda.referencia_fisica }}</p>
+  </div>
+
+  <div class="metric-row">
+    <div class="metric">
+      <span class="metric-label">Deuda pendiente</span>
+      <span class="metric-value">S/ {{ '%.2f' | format(saldo_total) }}</span>
+    </div>
+    <div class="metric">
+      <span class="metric-label">Recibos pendientes</span>
+      <span class="metric-value">{{ pendientes_count }}</span>
+    </div>
+  </div>
+
+  {% if puede_cobrar and not caja_abierta %}
+  <div class="alert alert-warning">
+    No tienes caja abierta. <a href="/app/caja/abrir" class="btn-link">Abrir caja</a> antes de cobrar en efectivo.
+  </div>
+  {% endif %}
+
+  <h2>Recibos</h2>
+  {% if cuotas | length == 0 %}
+    <p class="muted">Aún no se han generado recibos para esta vivienda.</p>
+  {% else %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>N° Recibo</th>
+          <th>Periodo</th>
+          <th>Vencimiento</th>
+          <th>Total</th>
+          <th>Pagado</th>
+          <th>Saldo</th>
+          <th>Estado</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in cuotas %}
+        <tr>
+          <td><code>{{ c.numero_recibo }}</code></td>
+          <td>{{ nombre_periodo(c.periodo_anio, c.periodo_mes) }}</td>
+          <td class="muted">{{ c.fecha_vencimiento }}</td>
+          <td>S/ {{ '%.2f' | format(c.total | float) }}</td>
+          <td>S/ {{ '%.2f' | format(c.monto_pagado | float) }}</td>
+          <td><strong>S/ {{ '%.2f' | format(c.saldo_pendiente | float) }}</strong></td>
+          <td>
+            {% if c.estado == 'pagado' %}<span class="badge badge-ok">Pagado</span>
+            {% elif c.estado == 'parcial' %}<span class="badge">Parcial</span>
+            {% elif c.estado == 'pendiente' %}<span class="badge badge-off">Pendiente</span>
+            {% else %}<span class="badge">{{ c.estado }}</span>{% endif %}
+          </td>
+          <td>
+            <a href="/app/recibos/{{ c.id }}/pdf" target="_blank" class="btn-link">PDF</a>
+            {% if puede_cobrar and c.estado in ['pendiente', 'parcial'] and caja_abierta %}
+              <button type="button" class="btn-link"
+                _="on click toggle .open on #pago-{{ c.id }}">
+                Cobrar
+              </button>
+            {% endif %}
+          </td>
+        </tr>
+        {% if puede_cobrar and c.estado in ['pendiente', 'parcial'] and caja_abierta %}
+        <tr id="pago-{{ c.id }}" class="pago-row" style="display:none"
+            _="on toggle if I match .open then show me else hide me end">
+          <td colspan="8">
+            {% include 'tenant/cobranza/_frag_pago.html' %}
+          </td>
+        </tr>
+        {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <h2>Pagos recientes</h2>
+  {% if pagos | length == 0 %}
+    <p class="muted">Sin pagos registrados.</p>
+  {% else %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Fecha</th>
+          <th>Recibo</th>
+          <th>Método</th>
+          <th>Monto</th>
+          <th>Cajero</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in pagos %}
+        <tr>
+          <td><code>{{ '%06d' | format(p.id) }}</code></td>
+          <td class="muted">{{ p.fecha_pago.strftime('%Y-%m-%d %H:%M') }}</td>
+          <td><code>{{ p.numero_recibo }}</code></td>
+          <td>{{ p.metodo }}</td>
+          <td><strong>S/ {{ '%.2f' | format(p.monto | float) }}</strong></td>
+          <td class="muted">{{ p.cajero_nombre or '—' }}</td>
+          <td>
+            {% if p.anulado %}<span class="badge badge-off">Anulado</span>
+            {% else %}<a href="/app/pagos/{{ p.id }}/comprobante" target="_blank" class="btn-link">Comprobante</a>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

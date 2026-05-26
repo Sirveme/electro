@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block title %}Cerrar caja{% endblock %}
+{% block content %}
+<section class="page">
+  <h1 class="page-title">Cerrar caja #{{ caja.id }}</h1>
+  <p class="page-subtitle">
+    Cuenta el efectivo físico antes de cerrar. El sistema calculará la diferencia.
+  </p>
+
+  <div class="card">
+    <p><strong>Monto inicial:</strong> S/ {{ '%.2f' | format(caja.monto_inicial | float) }}</p>
+    <p><strong>Cobros efectivo en sesión:</strong> {{ pagos | length }}</p>
+    <p><strong>Monto esperado:</strong> S/ {{ '%.2f' | format(monto_esperado | float) }}</p>
+  </div>
+
+  <form method="post" action="/app/caja/cerrar" class="form" id="form-cerrar"
+    _="on submit
+        halt the event
+        set real to (event.target.querySelector('#monto_real').value as Float)
+        set esperado to {{ '%.2f' | format(monto_esperado | float) }}
+        set dif to (real - esperado)
+        if Math.abs(dif) >= 0.01
+          set msg to 'Diferencia detectada: S/ ' + dif.toFixed(2) + ' (esperado S/ ' + esperado.toFixed(2) + ', contado S/ ' + real.toFixed(2) + '). Confirmas el cierre?'
+          call appModal.confirm('Cierre con diferencia', msg, {danger: true, okText: 'Si, cerrar con diferencia'})
+          then if it then call event.target.submit() end
+        else
+          call appModal.confirm('Cerrar caja', 'Confirmas el cierre de caja?', {danger: false, okText: 'Si, cerrar'})
+          then if it then call event.target.submit() end
+        end">
+    {% include 'components/csrf_input.html' %}
+    <input type="hidden" name="apertura_id" value="{{ caja.id }}">
+
+    <label class="form-field">
+      <span class="form-label">Monto real contado (S/)</span>
+      <input id="monto_real" type="number" name="monto_real_contado" step="0.01" min="0" required autofocus
+             value="{{ '%.2f' | format(monto_esperado | float) }}">
+    </label>
+
+    <label class="form-field">
+      <span class="form-label">Observaciones (opcional)</span>
+      <textarea name="observaciones" rows="2" maxlength="400"></textarea>
+    </label>
+
+    <div class="form-actions">
+      <a href="/app/caja/" class="btn btn--ghost">Cancelar</a>
+      <button type="submit" class="btn btn--danger">Cerrar caja</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block title %}Cobrar pago{% endblock %}
+{% block content %}
+<section class="page">
+  <h1 class="page-title">Buscar vivienda</h1>
+  <p class="page-subtitle">Ingresa el código de la vivienda (V-0001) o el DNI del morador.</p>
+
+  <form method="get" action="/app/cobranza/buscar" class="form">
+    <label class="form-field">
+      <span class="form-label">Código o DNI</span>
+      <input type="text" name="q" autofocus required value="{{ q or '' }}"
+             placeholder="V-0001 o 12345678">
+    </label>
+    <div class="form-actions">
+      <button type="submit" class="btn btn--primary">Buscar</button>
+    </div>
+  </form>
+
+  {% if no_encontrado %}
+  <div class="alert alert-warning">
+    No se encontró ninguna vivienda con <code>{{ q }}</code>.
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+{% block title %}Nuevo subsidio{% endblock %}
+{% block content %}
+<section class="page">
+  <h1 class="page-title">Nuevo subsidio</h1>
+  <p class="page-subtitle">
+    El subsidio reduce el monto del recibo para todas las viviendas de las comunidades cubiertas.
+    Si ya existe un subsidio vigente en una comunidad, será suspendido automáticamente al guardar.
+  </p>
+
+  <form method="post" action="/app/subsidios/nuevo" class="form" id="form-subsidio"
+    _="on submit
+        halt the event
+        set p to (event.target.querySelector('#porcentaje').value as Float)
+        if p >= 100
+          call appModal.confirm(
+            'Subsidio TOTAL (100%)',
+            'Esto significa que TODAS las viviendas de las comunidades seleccionadas tendran recibos en CERO. El servicio sera GRATUITO. Es lo que indica la Ordenanza?',
+            {danger: true, okText: 'Si, confirmar gratuidad', cancelText: 'No, revisar'})
+          then
+          if it
+            call appModal.confirm(
+              'Ultima confirmacion',
+              'Estas creando un subsidio del 100 por ciento. Esto NO se puede deshacer en recibos ya emitidos. Confirmas definitivamente?',
+              {danger: true, okText: 'Si, confirmar definitivamente'})
+            then if it then call event.target.submit() end
+          end
+        else if p >= 80
+          call appModal.confirm(
+            'Subsidio alto',
+            'Estas creando un subsidio del ' + p + ' por ciento. El morador pagara solo el ' + (100 - p) + ' por ciento del consumo estimado. Es esto lo que indica la Ordenanza?',
+            {danger: true, okText: 'Si, confirmar', cancelText: 'No, revisar'})
+          then if it then call event.target.submit() end
+        else
+          call event.target.submit()
+        end">
+    {% include 'components/csrf_input.html' %}
+
+    <label class="form-field">
+      <span class="form-label">Nombre del subsidio</span>
+      <input type="text" name="nombre" required maxlength="120" value="{{ datos.nombre or '' }}"
+             placeholder="Ej: Subsidio para zonas rurales 2026">
+    </label>
+
+    <label class="form-field">
+      <span class="form-label">Porcentaje (0–100)</span>
+      <input id="porcentaje" type="number" name="porcentaje" step="0.01" min="0" max="100" required
+             value="{{ datos.porcentaje or '' }}">
+    </label>
+
+    <label class="form-field">
+      <span class="form-label">Base legal (Ordenanza N°, etc.)</span>
+      <input type="text" name="base_legal" required maxlength="200" value="{{ datos.base_legal or '' }}"
+             placeholder="Ej: Ordenanza Municipal N° 005-2026-MDA">
+    </label>
+
+    <label class="form-field">
+      <span class="form-label">Vigente desde</span>
+      <input type="date" name="vigente_desde" required value="{{ datos.vigente_desde }}">
+    </label>
+
+    <fieldset class="form-field">
+      <legend class="form-label">Comunidades cubiertas</legend>
+      {% if comunidades | length == 0 %}
+        <p class="muted">No hay comunidades activas. Crea comunidades antes de configurar el subsidio.</p>
+      {% else %}
+        <div class="checkbox-list">
+          {% for c in comunidades %}
+            <label class="checkbox-item">
+              <input type="checkbox" name="comunidad_ids" value="{{ c.id }}">
+              <span>{{ c.nombre }}</span>
+            </label>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </fieldset>
+
+    <label class="form-field">
+      <span class="form-label">Observaciones (opcional)</span>
+      <textarea name="observaciones" rows="2" maxlength="400">{{ datos.observaciones or '' }}</textarea>
+    </label>
+
+    <div class="form-actions">
+      <a href="/app/subsidios/" class="btn btn--ghost">Cancelar</a>
+      <button type="submit" class="btn btn--primary">Crear subsidio</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

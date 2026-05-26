@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Recibo {{ cuota.numero_recibo }}</title>
+  <style>
+    @page { size: Letter; margin: 14mm 12mm; }
+    body { font-family: 'Helvetica', Arial, sans-serif; font-size: 9pt; color: #111; }
+    .recibo-wrap { max-width: 100%; }
+    .head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #111; padding-bottom: 6pt; }
+    .head h1 { margin: 0; font-size: 16pt; }
+    .head .muni { font-size: 10pt; font-weight: bold; }
+    .head .small { font-size: 8pt; color: #666; }
+    .meta { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4pt 12pt; margin-top: 6pt; }
+    .meta b { display: inline-block; min-width: 70pt; }
+    h2 { font-size: 10pt; margin: 10pt 0 4pt 0; border-bottom: 1px solid #999; padding-bottom: 2pt; }
+    table { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
+    th, td { border-bottom: 1px solid #ddd; padding: 3pt 4pt; text-align: left; }
+    th { background: #f3f3f3; }
+    td.num { text-align: right; }
+    .totales { width: 60%; margin-left: auto; margin-top: 6pt; }
+    .totales td { padding: 2pt 4pt; border: none; }
+    .totales .total { font-weight: bold; font-size: 12pt; border-top: 2px solid #111; padding-top: 4pt; }
+    .footer { margin-top: 14pt; font-size: 7.5pt; color: #888; text-align: center; }
+    .subsidio { color: #6a040f; }
+  </style>
+</head>
+<body>
+  <div class="recibo-wrap">
+    <div class="head">
+      <div>
+        <div class="muni">{{ municipio_nombre }}</div>
+        <div class="small">Recibo de servicio eléctrico</div>
+      </div>
+      <div style="text-align:right">
+        <h1>N° {{ cuota.numero_recibo }}</h1>
+        <div class="small">Periodo: <b>{{ periodo_label }}</b></div>
+        <div class="small">Emisión: {{ cuota.fecha_emision }} · Vence: {{ cuota.fecha_vencimiento }}</div>
+      </div>
+    </div>
+
+    <div class="meta">
+      <div><b>Vivienda:</b> {{ vivienda.codigo_interno }}</div>
+      <div><b>Comunidad:</b> {{ vivienda.comunidad_nombre or '—' }}</div>
+      <div><b>Referencia:</b> {{ vivienda.referencia_fisica or '' }}</div>
+      <div><b>Titular:</b> {% if moradores %}{{ moradores[0].nombre_completo }}{% else %}—{% endif %}</div>
+    </div>
+
+    <h2>Detalle</h2>
+    <table>
+      <thead>
+        <tr><th>Concepto</th><th>Cant.</th><th>Tarifa</th><th class="num">Importe (S/)</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Cargo fijo mensual</td>
+          <td>—</td>
+          <td>—</td>
+          <td class="num">{{ '%.2f' | format(cuota.cargo_fijo | float) }}</td>
+        </tr>
+        {% if (cuota.adicional_morador | float) > 0 %}
+        <tr>
+          <td>Adicional moradores</td>
+          <td>{{ cuota.n_moradores }}</td>
+          <td>—</td>
+          <td class="num">{{ '%.2f' | format(cuota.adicional_morador | float) }}</td>
+        </tr>
+        {% endif %}
+        {% for a in cuota.detalle_aparatos_json or [] %}
+        <tr>
+          <td>{{ a.nombre }}</td>
+          <td>{{ a.cantidad }}</td>
+          <td>{{ '%.2f' | format(a.tarifa | float) }}</td>
+          <td class="num">{{ '%.2f' | format(a.importe | float) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <table class="totales">
+      <tr><td>Subtotal:</td><td class="num">S/ {{ '%.2f' | format(cuota.subtotal | float) }}</td></tr>
+      {% if cuota.subsidio_id %}
+        <tr class="subsidio">
+          <td>Subsidio {{ cuota.subsidio_porcentaje }}% · {{ cuota.subsidio_nombre }}<br>
+            <span class="small">{{ cuota.subsidio_base_legal }}</span></td>
+          <td class="num">– S/ {{ '%.2f' | format(cuota.subsidio_monto | float) }}</td>
+        </tr>
+      {% endif %}
+      <tr class="total"><td>TOTAL A PAGAR:</td><td class="num">S/ {{ '%.2f' | format(cuota.total | float) }}</td></tr>
+    </table>
+
+    <div class="footer">
+      Documento generado por el sistema. Para consultas, comuníquese con su municipalidad.
+    </div>
+  </div>
+</body>
+</html>

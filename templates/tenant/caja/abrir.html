@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block title %}Abrir caja{% endblock %}
+{% block content %}
+<section class="page">
+  <h1 class="page-title">Abrir caja diaria</h1>
+  <p class="page-subtitle">El monto inicial es opcional. Déjalo en 0 si arrancas la jornada sin fondo de caja.</p>
+
+  <form method="post" action="/app/caja/abrir" class="form">
+    {% include 'components/csrf_input.html' %}
+    <label class="form-field">
+      <span class="form-label">Monto inicial (S/)</span>
+      <input type="number" name="monto_inicial" step="0.01" min="0" value="0.00" autofocus>
+    </label>
+    <div class="form-actions">
+      <a href="/app/caja/" class="btn btn--ghost">Cancelar</a>
+      <button type="submit" class="btn btn--primary">Abrir caja</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

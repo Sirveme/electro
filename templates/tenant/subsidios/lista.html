@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% block title %}Subsidios{% endblock %}
+{% block content %}
+<section class="page">
+  <div class="page-header">
+    <h1 class="page-title">Subsidios</h1>
+    {% if ctx.user | puede('subsidios', 'config', 'crear') %}
+      <a href="/app/subsidios/nuevo" class="btn btn--primary">+ Nuevo subsidio</a>
+    {% endif %}
+  </div>
+  <p class="page-subtitle">
+    Los subsidios reducen el monto de los recibos para las comunidades cubiertas.
+    Se aplican sobre el subtotal completo (cargo fijo + adicional moradores + aparatos).
+  </p>
+
+  {% if subsidios | length == 0 %}
+    <div class="empty-state">
+      <p>No hay subsidios configurados.</p>
+    </div>
+  {% else %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>%</th>
+            <th>Comunidades</th>
+            <th>Base legal</th>
+            <th>Vigencia</th>
+            <th>Estado</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in subsidios %}
+          <tr>
+            <td>{{ s.nombre }}</td>
+            <td><strong>{{ s.porcentaje }}%</strong></td>
+            <td class="muted">
+              {% if s.comunidad_nombres %}{{ s.comunidad_nombres | join(', ') }}{% else %}—{% endif %}
+            </td>
+            <td class="muted">{{ s.base_legal }}</td>
+            <td class="muted">
+              {{ s.vigente_desde }}{% if s.vigente_hasta %} → {{ s.vigente_hasta }}{% endif %}
+            </td>
+            <td>
+              {% if s.vigente_hasta and s.vigente_hasta < today %}
+                <span class="badge badge-off">Suspendido</span>
+              {% else %}
+                <span class="badge badge-ok">Vigente</span>
+              {% endif %}
+            </td>
+            <td><a href="/app/subsidios/{{ s.id }}" class="btn-link">Ver</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

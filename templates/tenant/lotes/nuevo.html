@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% block title %}Generar lote{% endblock %}
+{% block content %}
+<section class="page">
+  <h1 class="page-title">Generar recibos del mes</h1>
+  <p class="page-subtitle">
+    Esto creará un recibo para CADA vivienda activa, congelando el inventario y la tarifa al fin del mes facturado.
+    Esta operación NO se puede deshacer si hay pagos asociados.
+  </p>
+
+  <form method="post" action="/app/cobranza/lotes/nuevo" class="form" id="form-lote"
+    _="on submit
+        halt the event
+        set anio to (event.target.querySelector('#periodo_anio').value as Number)
+        set mes to (event.target.querySelector('#periodo_mes').value as Number)
+        set hoy to new Date()
+        set hoy_anio to hoy.getFullYear()
+        set hoy_mes to (hoy.getMonth() + 1)
+        set hoy_dia to hoy.getDate()
+        set ultimo_dia to new Date(anio, mes, 0).getDate()
+        if (anio < hoy_anio) or (anio == hoy_anio and mes < hoy_mes) or (anio == hoy_anio and mes == hoy_mes and hoy_dia < (ultimo_dia - 3))
+          set msg to 'Estas generando recibos del periodo ' + mes + '/' + anio + ' pero hoy es ' + hoy_dia + '/' + hoy_mes + '/' + hoy_anio + '. Normalmente se generan en los ultimos 3 dias del mes facturado. Continuar?'
+          call appModal.confirm('Aun no es fin de mes', msg, {danger: false, okText: 'Si, generar igual', cancelText: 'No, esperar'})
+          then if it then call appModal.confirm('Confirmar generacion', 'Se crearan recibos para todas las viviendas activas. Continuar?', {danger: true, okText: 'Si, generar'}) end
+          then if it then call event.target.submit() end
+        else
+          call appModal.confirm('Confirmar generacion', 'Se crearan recibos para todas las viviendas activas del periodo ' + mes + '/' + anio + '. Continuar?', {danger: false, okText: 'Si, generar'})
+          then if it then call event.target.submit() end
+        end">
+    {% include 'components/csrf_input.html' %}
+
+    <div class="form-row">
+      <label class="form-field">
+        <span class="form-label">Año del periodo</span>
+        <input id="periodo_anio" type="number" name="periodo_anio" required min="2020" max="2099" value="{{ anio_default }}">
+      </label>
+      <label class="form-field">
+        <span class="form-label">Mes del periodo (1-12)</span>
+        <input id="periodo_mes" type="number" name="periodo_mes" required min="1" max="12" value="{{ mes_default }}">
+      </label>
+    </div>
+
+    <div class="form-row">
+      <label class="form-field">
+        <span class="form-label">Fecha de emisión</span>
+        <input type="date" name="fecha_emision" required value="{{ ultimo_dia_default }}">
+      </label>
+      <label class="form-field">
+        <span class="form-label">Fecha de vencimiento</span>
+        <input type="date" name="fecha_vencimiento" required value="{{ vencimiento_default }}">
+      </label>
+    </div>
+
+    <div class="form-actions">
+      <a href="/app/cobranza/lotes/" class="btn btn--ghost">Cancelar</a>
+      <button type="submit" class="btn btn--primary">Generar lote</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

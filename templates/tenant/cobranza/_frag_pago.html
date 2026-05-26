@@ -1,0 +1,38 @@
+{#
+  Fragmento de formulario de cobro inline, embebido en la fila de cada recibo
+  pendiente/parcial. Requiere variables: vivienda, c (cuota).
+#}
+<form method="post" action="/app/cobranza/vivienda/{{ vivienda.codigo_interno }}/cobrar" class="form pago-form">
+  {% include 'components/csrf_input.html' %}
+  <input type="hidden" name="cuota_id" value="{{ c.id }}">
+
+  <div class="form-row">
+    <label class="form-field">
+      <span class="form-label">Monto a cobrar (máx S/ {{ '%.2f' | format(c.saldo_pendiente | float) }})</span>
+      <input type="number" name="monto" step="0.01" min="0.01"
+             max="{{ '%.2f' | format(c.saldo_pendiente | float) }}"
+             required value="{{ '%.2f' | format(c.saldo_pendiente | float) }}">
+    </label>
+    <label class="form-field">
+      <span class="form-label">Método</span>
+      <select name="metodo">
+        <option value="efectivo">Efectivo</option>
+        <option value="yape" disabled>Yape (próximamente)</option>
+        <option value="plin" disabled>Plin (próximamente)</option>
+      </select>
+    </label>
+  </div>
+
+  <label class="form-field">
+    <span class="form-label">Observaciones (opcional)</span>
+    <input type="text" name="observaciones" maxlength="200">
+  </label>
+
+  <div class="form-actions">
+    <button type="button" class="btn btn--ghost"
+            _="on click remove .open from closest <.pago-row/>">
+      Cancelar
+    </button>
+    <button type="submit" class="btn btn--primary">Confirmar cobro</button>
+  </div>
+</form>

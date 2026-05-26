@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+{% block title %}Lote #{{ lote.id }}{% endblock %}
+{% block content %}
+<section class="page">
+  <div class="page-header">
+    <h1 class="page-title">Lote #{{ lote.id }} · {{ periodo_label }}</h1>
+    <a href="/app/cobranza/lotes/" class="btn btn--ghost">← Lotes</a>
+  </div>
+
+  <div class="card">
+    <p><strong>Emisión:</strong> {{ lote.fecha_emision }} · <strong>Vencimiento:</strong> {{ lote.fecha_vencimiento }}</p>
+    <p><strong>Recibos generados:</strong> {{ lote.total_recibos_generados }} ·
+       <strong>Fallidos:</strong> {{ lote.total_recibos_fallidos }} ·
+       <strong>Viviendas:</strong> {{ lote.total_viviendas }}
+    </p>
+    <p><strong>Monto emitido:</strong> S/ {{ '%.2f' | format(lote.monto_total_emitido | float) }} ·
+       <strong>Subsidiado:</strong> S/ {{ '%.2f' | format(lote.monto_total_subsidiado | float) }}
+    </p>
+    <p><strong>Estado:</strong>
+      {% if lote.estado == 'activo' %}<span class="badge badge-ok">Activo</span>
+      {% elif lote.estado == 'anulado' %}<span class="badge badge-off">Anulado</span>
+      {% else %}<span class="badge">{{ lote.estado }}</span>{% endif %}
+    </p>
+    {% if lote.motivo_anulacion %}
+      <p><strong>Motivo anulación:</strong> {{ lote.motivo_anulacion }}</p>
+    {% endif %}
+    {% if lote.observaciones %}
+      <details>
+        <summary>Errores individuales</summary>
+        <pre class="muted" style="white-space:pre-wrap; font-size:.85em">{{ lote.observaciones }}</pre>
+      </details>
+    {% endif %}
+  </div>
+
+  {% if lote.estado == 'activo' and (ctx.user | puede('lotes', 'facturacion', 'anular')) %}
+  <form method="post" action="/app/cobranza/lotes/{{ lote.id }}/anular" class="form" id="form-anular"
+    _="on submit
+        halt the event
+        call appModal.confirm(
+          'Anular lote',
+          'Al anular este lote, todos los recibos asociados quedaran anulados. Esta operacion NO se puede deshacer y requiere que NO existan pagos asociados. Continuar?',
+          {danger: true, okText: 'Si, anular lote'})
+        then if it then call event.target.submit() end">
+    {% include 'components/csrf_input.html' %}
+    <label class="form-field">
+      <span class="form-label">Motivo de anulación</span>
+      <input type="text" name="motivo" required maxlength="200">
+    </label>
+    <div class="form-actions">
+      <button type="submit" class="btn btn--danger">Anular lote</button>
+    </div>
+  </form>
+  {% endif %}
+
+  <h2>Recibos del lote ({{ cuotas | length }})</h2>
+  {% if cuotas | length == 0 %}
+    <p class="muted">Sin recibos.</p>
+  {% else %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>N° Recibo</th>
+          <th>Vivienda</th>
+          <th>Comunidad</th>
+          <th>Subtotal</th>
+          <th>Subsidio</th>
+          <th>Total</th>
+          <th>Pagado</th>
+          <th>Saldo</th>
+          <th>Estado</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in cuotas %}
+        <tr>
+          <td><code>{{ c.numero_recibo }}</code></td>
+          <td><code>{{ c.codigo_interno }}</code></td>
+          <td class="muted">{{ c.comunidad_nombre or '—' }}</td>
+          <td>S/ {{ '%.2f' | format(c.subtotal | float) }}</td>
+          <td class="muted">S/ {{ '%.2f' | format(c.subsidio_monto | float) }}</td>
+          <td><strong>S/ {{ '%.2f' | format(c.total | float) }}</strong></td>
+          <td>S/ {{ '%.2f' | format(c.monto_pagado | float) }}</td>
+          <td>S/ {{ '%.2f' | format(c.saldo_pendiente | float) }}</td>
+          <td>
+            {% if c.estado == 'pagado' %}<span class="badge badge-ok">Pagado</span>
+            {% elif c.estado == 'parcial' %}<span class="badge">Parcial</span>
+            {% elif c.estado == 'pendiente' %}<span class="badge badge-off">Pendiente</span>
+            {% else %}<span class="badge">{{ c.estado }}</span>{% endif %}
+          </td>
+          <td>
+            <a href="/app/recibos/{{ c.id }}/pdf" target="_blank" class="btn-link">PDF</a>
+            <a href="/app/cobranza/vivienda/{{ c.codigo_interno }}" class="btn-link">Cobrar</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}
