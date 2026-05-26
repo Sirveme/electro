@@ -183,3 +183,131 @@
   flex-direction: column;
   gap: 8px;
 }
+
+/* === Anulación / acciones de ficha (fix-08) === */
+
+.ficha-actions {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  flex-wrap: wrap;
+  margin: var(--space-3) 0;
+}
+
+.row-anulada {
+  opacity: 0.55;
+  background: rgba(255, 71, 87, 0.05);
+}
+
+.badge-danger {
+  background: var(--danger);
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.badge-small {
+  font-size: 0.7rem;
+  padding: 1px 6px;
+  margin-left: 6px;
+}
+
+.alert {
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  margin: var(--space-3) 0;
+}
+
+.alert-danger {
+  background: var(--danger-soft);
+  border: 1px solid var(--danger);
+  color: var(--text);
+}
+
+.alert-danger strong { color: var(--danger); }
+
+.checkbox-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.92rem;
+  color: var(--text);
+}
+
+/* Inline "modal" para anular / reactivar (no es un appModal de JS,
+   es un panel toggleable por hyperscript con .hidden) */
+.modal-inline.hidden { display: none; }
+
+.modal-inline {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: var(--bg-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+}
+
+.modal-inline-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+  max-width: 480px;
+  width: 100%;
+  box-shadow: var(--shadow-lg);
+}
+
+.modal-inline-card h2 {
+  margin-top: 0;
+  color: var(--text-strong);
+  font-size: 1.1rem;
+}
+
+.modal-inline-card .form-actions {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+  margin-top: var(--space-3);
+}
+
+.morador-card-actions {
+  margin-top: var(--space-2);
+  display: flex;
+  gap: var(--space-2);
+}
+
+.readonly-input {
+  background: var(--bg-base);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.form-checks {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  margin: var(--space-3) 0;
+}
+
+.form-checks legend {
+  padding: 0 var(--space-2);
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.form-checks .checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: var(--space-2) 0;
+}
+
+.btn--sm {
+  padding: 4px 10px;
+  font-size: 0.85rem;
+}
