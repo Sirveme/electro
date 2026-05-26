@@ -51,6 +51,7 @@ async def listar(
     comunidad: Optional[int] = None,
     estado: Optional[str] = None,
     q: Optional[str] = None,
+    incluir_anuladas: int = 0,
     page: int = 1,
 ):
     if not user.puede("padron", "viviendas", "ver"):
@@ -60,6 +61,8 @@ async def listar(
     offset = (page - 1) * page_size
 
     filtros_sql = ["v.activa = TRUE"]
+    if not incluir_anuladas:
+        filtros_sql.append("v.anulada_at IS NULL")
     params: dict = {"limit": page_size, "offset": offset}
 
     if comunidad:
@@ -87,7 +90,8 @@ async def listar(
             await ts.execute(
                 text(
                     f"SELECT v.id, v.codigo_interno, v.estado_servicio, v.referencia_fisica, "
-                    f"       v.empadronada_at, c.nombre AS comunidad_nombre, "
+                    f"       v.empadronada_at, v.anulada_at, "
+                    f"       c.nombre AS comunidad_nombre, "
                     f"       (SELECT m.nombre_completo FROM moradores m "
                     f"        WHERE m.vivienda_id = v.id AND m.es_jefe_familia = TRUE "
                     f"        AND m.activo = TRUE LIMIT 1) AS jefe_nombre "
@@ -117,7 +121,10 @@ async def listar(
             viviendas=rows, total=total,
             page=page, page_size=page_size,
             comunidades=comunidades,
-            filtros={"comunidad": comunidad, "estado": estado, "q": q or ""},
+            filtros={
+                "comunidad": comunidad, "estado": estado, "q": q or "",
+                "incluir_anuladas": bool(incluir_anuladas),
+            },
         ),
     )
 
@@ -437,6 +444,109 @@ async def wizard_paso4_submit(
     _clear_wizard(request)
     set_flash(request, "success", f"Vivienda {result['codigo_interno']} empadronada correctamente.")
     return RedirectResponse(f"/app/padron/{result['codigo_interno']}", status_code=303)
+
+
+# ---------- agregar artefacto (ruta literal — VA ANTES de /{codigo}) ----------
+
+@router.get("/{codigo}/inventario/agregar", response_class=HTMLResponse)
+async def agregar_artefacto_form(
+    request: Request,
+    codigo: str,
+    user: CurrentUser = Depends(require_password_changed),
+):
+    if not user.puede("inventario", "editar", "editar"):
+        raise HTTPException(403, "Sin permiso")
+    async with tenant_session(user.tenant_schema) as ts:
+        vivienda = (
+            await ts.execute(
+                text("SELECT id, codigo_interno FROM viviendas WHERE codigo_interno = :c"),
+                {"c": codigo},
+            )
+        ).first()
+        if not vivienda:
+            raise HTTPException(404, "Vivienda no encontrada")
+
+        catalogo = (
+            await ts.execute(
+                text(
+                    "SELECT ac.codigo, ac.nombre, ac.categoria, ac.icono, "
+                    "       COALESCE(cfg.tarifa_mensual, ac.tarifa_sugerida) AS tarifa "
+                    "FROM public.artefacto_catalogo ac "
+                    "LEFT JOIN artefacto_config cfg ON cfg.catalogo_id = ac.id "
+                    "WHERE (cfg.habilitado IS NULL AND ac.activo_default = TRUE) "
+                    "   OR cfg.habilitado = TRUE "
+                    "ORDER BY ac.categoria, ac.orden, ac.nombre"
+                )
+            )
+        ).all()
+        propios = (
+            await ts.execute(
+                text(
+                    "SELECT codigo, nombre, categoria, tarifa_mensual AS tarifa "
+                    "FROM artefacto_propio WHERE habilitado = TRUE "
+                    "ORDER BY categoria, orden, nombre"
+                )
+            )
+        ).all()
+
+    return request.app.state.templates.TemplateResponse(
+        "tenant/padron/inventario_agregar.html",
+        build_context(
+            request, user=user, vivienda=vivienda,
+            catalogo=catalogo, propios=propios,
+        ),
+    )
+
+
+@router.post("/{codigo}/inventario/agregar", dependencies=[Depends(verify_csrf)])
+async def agregar_artefacto_submit(
+    request: Request,
+    codigo: str,
+    user: CurrentUser = Depends(require_password_changed),
+    origen: str = Form(...),
+    artefacto_codigo: str = Form(...),
+    cantidad: int = Form(...),
+    motivo: str = Form("alta_revisita"),
+):
+    if not user.puede("inventario", "editar", "editar"):
+        raise HTTPException(403, "Sin permiso")
+    if cantidad <= 0:
+        set_flash(request, "error", "La cantidad debe ser mayor a 0.")
+        return RedirectResponse(f"/app/padron/{codigo}/inventario/agregar", status_code=303)
+    if origen not in ("catalogo", "propio"):
+        set_flash(request, "error", "Origen inválido.")
+        return RedirectResponse(f"/app/padron/{codigo}/inventario/agregar", status_code=303)
+
+    from app.services.inventario_service import agregar_artefacto as svc_agregar
+
+    async with tenant_session(user.tenant_schema) as ts:
+        vivienda = (
+            await ts.execute(
+                text("SELECT id FROM viviendas WHERE codigo_interno = :c"),
+                {"c": codigo},
+            )
+        ).first()
+        if not vivienda:
+            raise HTTPException(404, "Vivienda no encontrada")
+
+        try:
+            await svc_agregar(
+                ts, user.tenant_schema,
+                vivienda_id=vivienda.id,
+                artefacto_origen=origen,
+                artefacto_codigo=artefacto_codigo,
+                cantidad=cantidad,
+                user_id=user.user_id,
+                motivo=motivo,
+            )
+            await ts.commit()
+        except InventarioError as exc:
+            await ts.rollback()
+            set_flash(request, "error", str(exc))
+            return RedirectResponse(f"/app/padron/{codigo}/inventario/agregar", status_code=303)
+
+    set_flash(request, "success", "Artefacto agregado al inventario.")
+    return RedirectResponse(f"/app/padron/{codigo}", status_code=303)
 
 
 # ---------- baja artefacto (ruta literal después de /{codigo}/... — Python evalúa

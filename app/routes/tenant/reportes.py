@@ -1,7 +1,11 @@
 """
 Reportes y consultas. Tres formatos por reporte: HTML (default), CSV, PDF.
-?format=csv → text/csv download
-?format=pdf → application/pdf download
+?format=csv → descarga forzada CSV (BOM UTF-8 para Excel).
+?format=pdf → descarga forzada PDF.
+
+Las descargas usan application/octet-stream + Content-Disposition: attachment
+para evitar previews inline en navegadores con visor PDF activo o intermediarios
+(Cloudflare) que cambian content-type.
 """
 import csv
 import io
@@ -58,7 +62,12 @@ def _format_cell(v) -> str:
 
 
 def _csv_response(filename: str, headers: list[str], rows: list[dict]) -> StreamingResponse:
-    """Genera CSV streaming con BOM para que Excel detecte UTF-8."""
+    """Genera CSV streaming con descarga forzada (resistente a inline preview).
+
+    - BOM (\\ufeff) hace que Excel lea UTF-8 sin caracteres raros en tildes.
+    - application/octet-stream evita que el navegador haga preview inline.
+    - filename*=UTF-8'' por RFC 6266 para nombres con caracteres especiales.
+    """
     output = io.StringIO()
     output.write("﻿")
     writer = csv.writer(output, quoting=csv.QUOTE_MINIMAL)
@@ -68,20 +77,28 @@ def _csv_response(filename: str, headers: list[str], rows: list[dict]) -> Stream
     output.seek(0)
     return StreamingResponse(
         iter([output.getvalue()]),
-        media_type="text/csv; charset=utf-8",
-        headers={"Content-Disposition": f'attachment; filename="{filename}.csv"'},
+        media_type="application/octet-stream",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}.csv"; filename*=UTF-8\'\'{filename}.csv',
+            "X-Content-Type-Options": "nosniff",
+            "Cache-Control": "no-store",
+        },
     )
 
 
 async def _render_pdf(request: Request, template: str, ctx: dict, filename: str) -> Response:
-    """Render template Jinja → HTML → PDF (vía pdf_service)."""
+    """Render template Jinja → HTML → PDF (vía pdf_service). Descarga forzada."""
     html = request.app.state.templates.get_template(template).render(ctx)
     renderer = get_pdf_renderer()
     pdf_bytes = renderer.render_html_to_pdf(html)
     return Response(
         content=pdf_bytes,
-        media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}.pdf"'},
+        media_type="application/octet-stream",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}.pdf"; filename*=UTF-8\'\'{filename}.pdf',
+            "X-Content-Type-Options": "nosniff",
+            "Cache-Control": "no-store",
+        },
     )
 
 
