@@ -25,6 +25,11 @@
     </select>
 
     <input type="text" name="q" placeholder="Buscar código o DNI..." value="{{ filtros.q }}">
+    <label class="checkbox-inline">
+      <input type="checkbox" name="incluir_anuladas" value="1"
+             {% if filtros.incluir_anuladas %}checked{% endif %}>
+      Mostrar anuladas
+    </label>
     <button type="submit" class="btn btn--ghost">Filtrar</button>
   </form>
 
@@ -46,13 +51,19 @@
         </thead>
         <tbody>
           {% for v in viviendas %}
-          <tr>
-            <td><code>{{ v.codigo_interno }}</code></td>
+          <tr {% if v.anulada_at %}class="row-anulada"{% endif %}>
+            <td>
+              <code>{{ v.codigo_interno }}</code>
+              {% if v.anulada_at %}
+                <span class="badge badge-danger badge-small">ANULADA</span>
+              {% endif %}
+            </td>
             <td>{{ v.comunidad_nombre or '—' }}</td>
             <td>{{ v.jefe_nombre or '—' }}</td>
             <td class="muted">{{ v.referencia_fisica[:60] }}{% if v.referencia_fisica | length > 60 %}…{% endif %}</td>
             <td>
-              {% if v.estado_servicio == 'activo' %}<span class="badge badge-ok">Activo</span>
+              {% if v.anulada_at %}<span class="badge badge-danger">Anulada</span>
+              {% elif v.estado_servicio == 'activo' %}<span class="badge badge-ok">Activo</span>
               {% elif v.estado_servicio == 'cortado' %}<span class="badge badge-off">Cortado</span>
               {% else %}<span class="badge">{{ v.estado_servicio }}</span>{% endif %}
             </td>
@@ -73,11 +84,11 @@
     {% if total_pages > 1 %}
     <div class="pagination">
       {% if page > 1 %}
-        <a href="?{% if filtros.comunidad %}comunidad={{ filtros.comunidad }}&{% endif %}{% if filtros.estado %}estado={{ filtros.estado }}&{% endif %}q={{ filtros.q }}&page={{ page - 1 }}" class="btn btn--ghost">‹ Anterior</a>
+        <a href="?{% if filtros.comunidad %}comunidad={{ filtros.comunidad }}&{% endif %}{% if filtros.estado %}estado={{ filtros.estado }}&{% endif %}{% if filtros.incluir_anuladas %}incluir_anuladas=1&{% endif %}q={{ filtros.q }}&page={{ page - 1 }}" class="btn btn--ghost">‹ Anterior</a>
       {% endif %}
       <span class="muted">Página {{ page }} de {{ total_pages }}</span>
       {% if page < total_pages %}
-        <a href="?{% if filtros.comunidad %}comunidad={{ filtros.comunidad }}&{% endif %}{% if filtros.estado %}estado={{ filtros.estado }}&{% endif %}q={{ filtros.q }}&page={{ page + 1 }}" class="btn btn--ghost">Siguiente ›</a>
+        <a href="?{% if filtros.comunidad %}comunidad={{ filtros.comunidad }}&{% endif %}{% if filtros.estado %}estado={{ filtros.estado }}&{% endif %}{% if filtros.incluir_anuladas %}incluir_anuladas=1&{% endif %}q={{ filtros.q }}&page={{ page + 1 }}" class="btn btn--ghost">Siguiente ›</a>
       {% endif %}
     </div>
     {% endif %}

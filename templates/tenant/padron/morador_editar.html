@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% block title %}Editar morador{% endblock %}
+{% block content %}
+<section class="page">
+  <div class="page-header">
+    <h1 class="page-title">Editar morador</h1>
+    <a href="/app/padron/{{ codigo }}" class="btn btn--ghost">Volver a la ficha</a>
+  </div>
+
+  <p class="muted small">
+    El DNI no se puede modificar — es el identificador del morador.
+    Si necesitas cambiarlo, da de baja al morador y registra uno nuevo.
+  </p>
+
+  <form method="post"
+        action="/app/padron/{{ codigo }}/morador/{{ morador.id }}/editar"
+        class="form">
+    {% include 'components/csrf_input.html' %}
+
+    <label for="dni">DNI</label>
+    <input type="text" id="dni" value="{{ morador.dni }}" readonly disabled
+           class="readonly-input">
+
+    <label for="nombre_completo">Nombre completo</label>
+    <input type="text" name="nombre_completo" id="nombre_completo"
+           value="{{ morador.nombre_completo }}" required>
+
+    <label for="sexo">Sexo</label>
+    <select name="sexo" id="sexo">
+      <option value=""  {% if not morador.sexo %}selected{% endif %}>— Sin especificar —</option>
+      <option value="M" {% if morador.sexo == 'M' %}selected{% endif %}>Masculino</option>
+      <option value="F" {% if morador.sexo == 'F' %}selected{% endif %}>Femenino</option>
+      <option value="V" {% if morador.sexo == 'V' %}selected{% endif %}>Varón (clasificación antigua)</option>
+    </select>
+
+    <label for="fecha_nacimiento">Fecha de nacimiento</label>
+    <input type="date" name="fecha_nacimiento" id="fecha_nacimiento"
+           value="{{ morador.fecha_nacimiento or '' }}">
+
+    <label for="telefono">Teléfono</label>
+    <input type="text" name="telefono" id="telefono"
+           value="{{ morador.telefono or '' }}"
+           placeholder="9 dígitos">
+
+    <fieldset class="form-checks">
+      <legend>Roles</legend>
+      <label class="checkbox">
+        <input type="checkbox" name="es_jefe_familia"
+               {% if morador.es_jefe_familia %}checked{% endif %}>
+        Jefe de familia
+        <span class="muted small">(solo uno por vivienda — al marcar éste, los otros se desmarcan automáticamente)</span>
+      </label>
+      <label class="checkbox">
+        <input type="checkbox" name="es_responsable_pago"
+               {% if morador.es_responsable_pago %}checked{% endif %}>
+        Responsable de pago
+        <span class="muted small">(solo uno por vivienda)</span>
+      </label>
+      <label class="checkbox">
+        <input type="checkbox" name="acceso_portal"
+               {% if morador.acceso_portal %}checked{% endif %}>
+        Tiene acceso al portal del morador
+      </label>
+    </fieldset>
+
+    <div class="form-actions">
+      <a href="/app/padron/{{ codigo }}" class="btn btn--ghost">Cancelar</a>
+      <button type="submit" class="btn btn--primary">Guardar cambios</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

@@ -11,9 +11,13 @@
       </p>
     </div>
     <div class="ficha-header-right">
-      <span class="badge badge-{{ 'ok' if vivienda.estado_servicio == 'activo' else 'off' }}">
-        {{ vivienda.estado_servicio }}
-      </span>
+      {% if vivienda.anulada_at %}
+        <span class="badge badge-danger">ANULADA</span>
+      {% else %}
+        <span class="badge badge-{{ 'ok' if vivienda.estado_servicio == 'activo' else 'off' }}">
+          {{ vivienda.estado_servicio }}
+        </span>
+      {% endif %}
       {% if vivienda.foto_fachada_url %}
         <a href="{{ vivienda.foto_fachada_url }}" target="_blank" rel="noopener">
           <img src="{{ vivienda.foto_fachada_url }}" alt="Fachada" class="ficha-foto-mini">
@@ -22,9 +26,42 @@
     </div>
   </div>
 
+  <div class="ficha-actions">
+    {% if vivienda.anulada_at %}
+      {% if ctx.user | puede('viviendas', 'admin', 'reactivar') %}
+        <button type="button" class="btn btn--primary"
+                _="on click remove .hidden from #modal-reactivar">
+          Reactivar vivienda
+        </button>
+      {% endif %}
+    {% else %}
+      {% if ctx.user | puede('viviendas', 'admin', 'editar') %}
+        <a href="/app/padron/{{ vivienda.codigo_interno }}/editar"
+           class="btn btn--ghost">Editar datos</a>
+      {% endif %}
+      {% if ctx.user | puede('viviendas', 'admin', 'anular') %}
+        <button type="button" class="btn btn--danger"
+                _="on click remove .hidden from #modal-anular">
+          Anular vivienda
+        </button>
+      {% endif %}
+    {% endif %}
+  </div>
+
+  {% if vivienda.anulada_at %}
+  <div class="alert alert-danger">
+    <strong>Esta vivienda fue anulada</strong>
+    el {{ vivienda.anulada_at.strftime('%Y-%m-%d %H:%M') }}.
+    Motivo: <em>{{ vivienda.motivo_anulacion or '—' }}</em>.
+    {% if vivienda.observacion_anulacion %}
+      <br>Observación: {{ vivienda.observacion_anulacion }}
+    {% endif %}
+  </div>
+  {% endif %}
+
   <div class="ficha-meta">
     <p><strong>Referencia:</strong> {{ vivienda.referencia_fisica }}</p>
-    {% if vivienda.direccion_textual %}
+    {% if vivienda.direccion_textual and vivienda.direccion_textual != 'None' %}
       <p><strong>Dirección:</strong> {{ vivienda.direccion_textual }}</p>
     {% endif %}
     {% if vivienda.gps_lat and vivienda.gps_lng %}
@@ -46,8 +83,14 @@
           {% if m.es_jefe_familia %}<span class="badge badge-ok">Jefe de familia</span>{% endif %}
           {% if m.es_responsable_pago %}<span class="badge">Pago</span>{% endif %}
         </div>
-        <div class="muted">DNI {{ m.dni }}{% if m.telefono %} · {{ m.telefono }}{% endif %}</div>
+        <div class="muted">DNI {{ m.dni }}{% if m.telefono and m.telefono != 'None' %} · {{ m.telefono }}{% endif %}</div>
         {% if m.acceso_portal %}<div class="muted">Tiene acceso al portal</div>{% endif %}
+        {% if (ctx.user | puede('moradores', 'admin', 'editar')) and not vivienda.anulada_at %}
+          <div class="morador-card-actions">
+            <a href="/app/padron/{{ vivienda.codigo_interno }}/morador/{{ m.id }}/editar"
+               class="btn btn--ghost btn--sm">Editar</a>
+          </div>
+        {% endif %}
       </div>
     {% endfor %}
   </div>
@@ -68,6 +111,12 @@
     </div>
 
     <div class="tab-panel tab-panel-active" data-panel="actual">
+      <div class="inv-header">
+        <span class="muted">{{ inventario_actual | length }} artefacto(s) vigente(s)</span>
+        {% if ctx.user | puede('inventario', 'editar', 'editar') %}
+          <a href="/app/padron/{{ vivienda.codigo_interno }}/inventario/agregar" class="btn btn--ghost btn--sm">+ Agregar artefacto</a>
+        {% endif %}
+      </div>
       {% if inventario_actual | length == 0 %}
         <p class="muted">Sin artefactos vigentes.</p>
       {% else %}
@@ -136,4 +185,11 @@
     </div>
   </div>
 </section>
+
+{% if (ctx.user | puede('viviendas', 'admin', 'anular')) and not vivienda.anulada_at %}
+  {% include 'tenant/padron/_modal_anular.html' %}
+{% endif %}
+{% if (ctx.user | puede('viviendas', 'admin', 'reactivar')) and vivienda.anulada_at %}
+  {% include 'tenant/padron/_modal_reactivar.html' %}
+{% endif %}
 {% endblock %}

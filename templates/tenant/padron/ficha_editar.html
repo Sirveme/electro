@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% block title %}Editar vivienda {{ vivienda.codigo_interno }}{% endblock %}
+{% block content %}
+<section class="page">
+  <div class="page-header">
+    <h1 class="page-title">Editar vivienda <code>{{ vivienda.codigo_interno }}</code></h1>
+    <a href="/app/padron/{{ vivienda.codigo_interno }}" class="btn btn--ghost">Volver a la ficha</a>
+  </div>
+
+  <p class="muted small">
+    Campos no editables: código interno, fecha de empadronamiento, GPS original.
+    Estos quedaron fijados al momento del empadronamiento original.
+  </p>
+
+  <form method="post"
+        action="/app/padron/{{ vivienda.codigo_interno }}/editar"
+        class="form ficha-editar-form">
+    {% include 'components/csrf_input.html' %}
+
+    <label for="comunidad_id">Comunidad</label>
+    <select name="comunidad_id" id="comunidad_id" required>
+      {% for c in comunidades %}
+        <option value="{{ c.id }}"
+                {% if c.id == vivienda.comunidad_id %}selected{% endif %}>
+          {{ c.nombre }}
+        </option>
+      {% endfor %}
+    </select>
+
+    <label for="referente_id">Referente</label>
+    <select name="referente_id" id="referente_id">
+      <option value="">— Sin referente —</option>
+      {% for r in referentes %}
+        <option value="{{ r.id }}"
+                {% if r.id == vivienda.referente_id %}selected{% endif %}>
+          {{ r.nombre_completo }}{% if r.cargo %} ({{ r.cargo }}){% endif %}
+        </option>
+      {% endfor %}
+    </select>
+
+    <label for="referencia_fisica">Referencia física</label>
+    <textarea name="referencia_fisica" id="referencia_fisica" rows="2"
+              required>{{ vivienda.referencia_fisica }}</textarea>
+
+    <label for="fuente_validacion">Fuente de validación</label>
+    <input type="text" name="fuente_validacion" id="fuente_validacion"
+           value="{{ vivienda.fuente_validacion or '' }}"
+           placeholder="DNI, declaración jurada, etc.">
+
+    <label for="estado_servicio">Estado del servicio</label>
+    <select name="estado_servicio" id="estado_servicio" required>
+      <option value="activo"      {% if vivienda.estado_servicio == 'activo' %}selected{% endif %}>Activo</option>
+      <option value="suspendido"  {% if vivienda.estado_servicio == 'suspendido' %}selected{% endif %}>Suspendido</option>
+      <option value="cortado"     {% if vivienda.estado_servicio == 'cortado' %}selected{% endif %}>Cortado</option>
+    </select>
+
+    <label for="modo_calculo">Modo de cálculo</label>
+    <select name="modo_calculo" id="modo_calculo" required>
+      <option value="estimado"         {% if vivienda.modo_calculo == 'estimado' %}selected{% endif %}>Estimado (por inventario)</option>
+      <option value="lectura_medidor"  {% if vivienda.modo_calculo == 'lectura_medidor' %}selected{% endif %}>Lectura de medidor</option>
+      <option value="mixto"            {% if vivienda.modo_calculo == 'mixto' %}selected{% endif %}>Mixto</option>
+    </select>
+
+    <label for="observaciones">Observaciones</label>
+    <textarea name="observaciones" id="observaciones" rows="3">{{ vivienda.observaciones or '' }}</textarea>
+
+    <div class="form-actions">
+      <a href="/app/padron/{{ vivienda.codigo_interno }}" class="btn btn--ghost">Cancelar</a>
+      <button type="submit" class="btn btn--primary">Guardar cambios</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

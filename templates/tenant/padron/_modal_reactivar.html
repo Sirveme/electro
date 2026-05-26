@@ -1,0 +1,48 @@
+<div id="modal-reactivar" class="modal-inline hidden">
+  <div class="modal-inline-card">
+    <h2>Reactivar vivienda <code>{{ vivienda.codigo_interno }}</code></h2>
+    <p class="muted">
+      La vivienda volverá al estado activo. Los moradores e inventario
+      <strong>NO se reactivan automáticamente</strong> — debes hacerlo manualmente
+      si corresponde.
+    </p>
+
+    <form method="post"
+          action="/app/padron/{{ vivienda.codigo_interno }}/reactivar"
+          class="form"
+          id="form-reactivar-vivienda">
+      {% include 'components/csrf_input.html' %}
+
+      <label for="motivo-reactivar">
+        Motivo de la reactivación
+        <span class="muted small">(mínimo 10 caracteres)</span>
+      </label>
+      <textarea name="motivo_reactivacion" id="motivo-reactivar" rows="3"
+                placeholder="Explica por qué reactivas esta vivienda" required></textarea>
+
+      <div class="form-actions">
+        <button type="button" class="btn btn--ghost"
+                _="on click add .hidden to #modal-reactivar">
+          Cancelar
+        </button>
+        <button type="submit" class="btn btn--primary"
+                _="on click
+                    halt the event
+                    set motivo to #motivo-reactivar.value
+                    if motivo.trim().length < 10 then
+                      call appModal.alert('Atención',
+                        'El motivo debe tener al menos 10 caracteres.')
+                      exit
+                    end
+                    set confirmed to appModal.confirm(
+                      'Confirmar reactivación',
+                      '¿Reactivar la vivienda {{ vivienda.codigo_interno }}?',
+                      {okText:'Sí, reactivar', cancelText:'No'}
+                    )
+                    if confirmed then submit #form-reactivar-vivienda end">
+          Reactivar vivienda
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

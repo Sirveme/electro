@@ -1,0 +1,64 @@
+<div id="modal-anular" class="modal-inline hidden">
+  <div class="modal-inline-card">
+    <h2>Anular vivienda <code>{{ vivienda.codigo_interno }}</code></h2>
+    <p class="muted">
+      Esta acción deja la vivienda fuera de operación: los moradores se desactivan
+      y el inventario se cierra. <strong>Solo personas con permiso pueden reactivarla.</strong>
+    </p>
+
+    <form method="post"
+          action="/app/padron/{{ vivienda.codigo_interno }}/anular"
+          class="form"
+          id="form-anular-vivienda">
+      {% include 'components/csrf_input.html' %}
+
+      <label for="motivo-anular">Motivo de anulación</label>
+      <select name="motivo" id="motivo-anular" required>
+        <option value="">— Selecciona un motivo —</option>
+        <option value="error_empadronamiento">Error de empadronamiento</option>
+        <option value="duplicado">Vivienda duplicada</option>
+        <option value="no_pertenece">No pertenece al distrito</option>
+        <option value="demolida">Vivienda demolida o ya no existe</option>
+        <option value="otro">Otro motivo</option>
+      </select>
+
+      <label for="obs-anular">
+        Observación
+        <span class="muted small">(obligatoria si el motivo es "Otro", mínimo 10 caracteres)</span>
+      </label>
+      <textarea name="observacion" id="obs-anular" rows="3"
+                placeholder="Detalle adicional"></textarea>
+
+      <div class="form-actions">
+        <button type="button" class="btn btn--ghost"
+                _="on click add .hidden to #modal-anular">
+          Cancelar
+        </button>
+        <button type="submit" class="btn btn--danger"
+                _="on click
+                    halt the event
+                    set motivo to #motivo-anular.value
+                    if motivo == '' then
+                      call appModal.alert('Atención', 'Selecciona un motivo de anulación.')
+                      exit
+                    end
+                    if motivo == 'otro' then
+                      set obs to #obs-anular.value
+                      if obs.trim().length < 10 then
+                        call appModal.alert('Atención',
+                          'Si el motivo es Otro, la observación debe tener al menos 10 caracteres.')
+                        exit
+                      end
+                    end
+                    set confirmed to appModal.confirm(
+                      'Confirmar anulación',
+                      'Vas a anular la vivienda {{ vivienda.codigo_interno }}. ¿Continuar?',
+                      {danger:true, okText:'Sí, anular', cancelText:'No'}
+                    )
+                    if confirmed then submit #form-anular-vivienda end">
+          Anular vivienda
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
