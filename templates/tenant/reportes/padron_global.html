@@ -1,0 +1,99 @@
+{% if print_mode %}
+{% extends 'tenant/reportes/_print_wrapper.html' %}
+{% block print_title %}Padrón global{% endblock %}
+{% block print_header %}
+  <h1>Padrón global</h1>
+  <div class="muted small">
+    {% if filtros.comunidad %}Comunidad #{{ filtros.comunidad }} · {% endif %}
+    {% if filtros.estado %}Estado: {{ filtros.estado }} · {% endif %}
+    {% if filtros.fecha_desde %}Desde: {{ filtros.fecha_desde }} · {% endif %}
+    {% if filtros.fecha_hasta %}Hasta: {{ filtros.fecha_hasta }}{% endif %}
+  </div>
+  <div class="muted small">Total: {{ data.totales.total_viviendas }} viviendas</div>
+{% endblock %}
+{% block print_content %}
+  <table>
+    <thead><tr>{% for h in data.headers %}<th>{{ h }}</th>{% endfor %}</tr></thead>
+    <tbody>
+      {% for r in data.rows %}
+        <tr>
+          <td>{{ r.codigo_interno }}</td>
+          <td>{{ r.comunidad or '—' }}</td>
+          <td>{{ r.estado_servicio }}</td>
+          <td>{{ (r.referencia_fisica or '')[:60] }}</td>
+          <td>{{ r.modo_calculo }}</td>
+          <td>{{ r.jefe or '—' }}</td>
+          <td>{{ r.dni_jefe or '—' }}</td>
+          <td class="right">{{ r.n_moradores }}</td>
+          <td class="right">{{ r.n_artefactos }}</td>
+          <td>{{ r.fecha_empadronamiento }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}
+{% else %}
+{% extends 'base.html' %}
+{% block title %}Padrón global{% endblock %}
+{% block content %}
+<section class="page reporte-page">
+  <div class="page-header">
+    <h1 class="page-title">Padrón global</h1>
+    <div class="export-buttons">
+      <a href="?format=csv{% if filtros.comunidad %}&comunidad={{ filtros.comunidad }}{% endif %}{% if filtros.estado %}&estado={{ filtros.estado }}{% endif %}{% if filtros.fecha_desde %}&fecha_desde={{ filtros.fecha_desde }}{% endif %}{% if filtros.fecha_hasta %}&fecha_hasta={{ filtros.fecha_hasta }}{% endif %}"
+         class="btn btn--ghost">Exportar CSV</a>
+      <a href="?format=pdf{% if filtros.comunidad %}&comunidad={{ filtros.comunidad }}{% endif %}{% if filtros.estado %}&estado={{ filtros.estado }}{% endif %}{% if filtros.fecha_desde %}&fecha_desde={{ filtros.fecha_desde }}{% endif %}{% if filtros.fecha_hasta %}&fecha_hasta={{ filtros.fecha_hasta }}{% endif %}"
+         class="btn btn--ghost">Exportar PDF</a>
+    </div>
+  </div>
+
+  <form method="get" class="filters" hx-boost="false">
+    <select name="comunidad">
+      <option value="">— Todas las comunidades —</option>
+      {% for c in comunidades %}
+        <option value="{{ c.id }}" {% if filtros.comunidad == c.id %}selected{% endif %}>{{ c.nombre }}</option>
+      {% endfor %}
+    </select>
+    <select name="estado">
+      <option value="">— Cualquier estado —</option>
+      <option value="activo"     {% if filtros.estado == 'activo' %}selected{% endif %}>Activo</option>
+      <option value="cortado"    {% if filtros.estado == 'cortado' %}selected{% endif %}>Cortado</option>
+      <option value="suspendido" {% if filtros.estado == 'suspendido' %}selected{% endif %}>Suspendido</option>
+    </select>
+    <input type="date" name="fecha_desde" value="{{ filtros.fecha_desde or '' }}">
+    <input type="date" name="fecha_hasta" value="{{ filtros.fecha_hasta or '' }}">
+    <button type="submit" class="btn btn--primary">Filtrar</button>
+  </form>
+
+  <p class="muted">Total: <strong>{{ data.totales.total_viviendas }}</strong> viviendas</p>
+
+  <div class="table-wrap">
+    <table class="table reporte-table">
+      <thead>
+        <tr>{% for h in data.headers %}<th>{{ h }}</th>{% endfor %}</tr>
+      </thead>
+      <tbody>
+        {% for r in data.rows %}
+          <tr>
+            <td><code>{{ r.codigo_interno }}</code></td>
+            <td>{{ r.comunidad or '—' }}</td>
+            <td>{{ r.estado_servicio }}</td>
+            <td class="muted">{{ (r.referencia_fisica or '')[:60] }}</td>
+            <td>{{ r.modo_calculo }}</td>
+            <td>{{ r.jefe or '—' }}</td>
+            <td>{{ r.dni_jefe or '—' }}</td>
+            <td class="right">{{ r.n_moradores }}</td>
+            <td class="right">{{ r.n_artefactos }}</td>
+            <td>{{ r.fecha_empadronamiento }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="{{ data.headers | length }}" class="muted">Sin resultados con esos filtros.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="muted small">Generado el {{ data.generado_at.strftime('%Y-%m-%d %H:%M') }}</p>
+</section>
+{% endblock %}
+{% endif %}

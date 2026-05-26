@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block print_title %}Reporte{% endblock %}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+      font-size: 10px;
+      color: #111;
+      margin: 18mm 12mm;
+    }
+    h1 { font-size: 16px; margin: 0 0 6px 0; }
+    h2 { font-size: 12px; margin: 14px 0 6px 0; color: #333; }
+    .muted { color: #666; }
+    .small { font-size: 9px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+    th, td { padding: 4px 6px; border-bottom: 1px solid #ddd; text-align: left; }
+    th { background: #f3f3f3; font-weight: 700; }
+    .right { text-align: right; }
+    .header { border-bottom: 2px solid #000; padding-bottom: 6px; margin-bottom: 10px; }
+    .footer { margin-top: 12px; font-size: 9px; color: #666; border-top: 1px solid #ddd; padding-top: 6px; }
+    .kpi-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .kpi-box { flex: 1; min-width: 120px; border: 1px solid #ccc; padding: 8px; text-align: center; }
+    .kpi-box .lbl { font-size: 8px; text-transform: uppercase; color: #555; }
+    .kpi-box .val { font-size: 18px; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    {% block print_header %}{% endblock %}
+  </div>
+  {% block print_content %}{% endblock %}
+  <div class="footer">
+    Generado el {{ data.generado_at.strftime('%Y-%m-%d %H:%M') if data and data.generado_at else '' }}
+    {% if ctx and ctx.user %} · {{ ctx.user.nombre }}{% endif %}
+  </div>
+</body>
+</html>

@@ -1,0 +1,102 @@
+{% if print_mode %}
+{% extends 'tenant/reportes/_print_wrapper.html' %}
+{% block print_title %}Recaudación mensual — {{ data.params.anio }}-{{ '%02d' | format(data.params.mes) }}{% endblock %}
+{% block print_header %}
+  <h1>Recaudación mensual</h1>
+  <div class="muted small">Periodo: {{ data.params.anio }}-{{ '%02d' | format(data.params.mes) }}</div>
+{% endblock %}
+{% block print_content %}
+  <h2>Resumen</h2>
+  <table>
+    <tr><th>Recibos emitidos</th><td class="right">{{ data.totales.n_recibos or 0 }}</td></tr>
+    <tr><th>Monto emitido (S/.)</th><td class="right">{{ '%.2f' | format(data.totales.monto_emitido or 0) }}</td></tr>
+    <tr><th>Monto cobrado (S/.)</th><td class="right">{{ '%.2f' | format(data.totales.monto_cobrado or 0) }}</td></tr>
+    <tr><th>Saldo pendiente (S/.)</th><td class="right">{{ '%.2f' | format(data.totales.monto_saldo or 0) }}</td></tr>
+    <tr><th>Subsidio aplicado (S/.)</th><td class="right">{{ '%.2f' | format(data.totales.monto_subsidiado or 0) }}</td></tr>
+    <tr><th>Pagados / Parciales / Pendientes</th><td class="right">{{ data.totales.n_pagados or 0 }} / {{ data.totales.n_parciales or 0 }} / {{ data.totales.n_pendientes or 0 }}</td></tr>
+  </table>
+
+  <h2>Desglose por comunidad</h2>
+  <table>
+    <thead><tr>{% for h in data.headers %}<th>{{ h }}</th>{% endfor %}</tr></thead>
+    <tbody>
+      {% for r in data.rows %}
+        <tr>
+          <td>{{ r.comunidad }}</td>
+          <td class="right">{{ r.n_recibos }}</td>
+          <td class="right">{{ '%.2f' | format(r.monto_emitido) }}</td>
+          <td class="right">{{ '%.2f' | format(r.monto_cobrado) }}</td>
+          <td class="right">{{ '%.2f' | format(r.monto_saldo) }}</td>
+          <td class="right">{{ r.pct_cobrado }}%</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}
+{% else %}
+{% extends 'base.html' %}
+{% block title %}Recaudación mensual{% endblock %}
+{% block content %}
+<section class="page reporte-page">
+  <div class="page-header">
+    <h1 class="page-title">Recaudación mensual</h1>
+    <div class="export-buttons">
+      <a href="?format=csv&anio={{ anio }}&mes={{ mes }}" class="btn btn--ghost">Exportar CSV</a>
+      <a href="?format=pdf&anio={{ anio }}&mes={{ mes }}" class="btn btn--ghost">Exportar PDF</a>
+    </div>
+  </div>
+
+  <form method="get" class="filters" hx-boost="false">
+    <input type="number" name="anio" value="{{ anio }}" min="2020" max="2100" step="1">
+    <select name="mes">
+      {% for m in range(1, 13) %}
+        <option value="{{ m }}" {% if m == mes %}selected{% endif %}>{{ '%02d' | format(m) }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn btn--primary">Consultar</button>
+  </form>
+
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-label">Recibos</div>
+      <div class="kpi-value">{{ data.totales.n_recibos or 0 }}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Emitido</div>
+      <div class="kpi-value">S/ {{ '%.2f' | format(data.totales.monto_emitido or 0) }}</div>
+    </div>
+    <div class="kpi-card kpi-card--accent">
+      <div class="kpi-label">Cobrado</div>
+      <div class="kpi-value">S/ {{ '%.2f' | format(data.totales.monto_cobrado or 0) }}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Saldo</div>
+      <div class="kpi-value">S/ {{ '%.2f' | format(data.totales.monto_saldo or 0) }}</div>
+    </div>
+  </div>
+
+  <h2>Desglose por comunidad</h2>
+  <div class="table-wrap">
+    <table class="table reporte-table">
+      <thead><tr>{% for h in data.headers %}<th>{{ h }}</th>{% endfor %}</tr></thead>
+      <tbody>
+        {% for r in data.rows %}
+          <tr>
+            <td>{{ r.comunidad }}</td>
+            <td class="right">{{ r.n_recibos }}</td>
+            <td class="right">{{ '%.2f' | format(r.monto_emitido) }}</td>
+            <td class="right">{{ '%.2f' | format(r.monto_cobrado) }}</td>
+            <td class="right">{{ '%.2f' | format(r.monto_saldo) }}</td>
+            <td class="right"><strong>{{ r.pct_cobrado }}%</strong></td>
+          </tr>
+        {% else %}
+          <tr><td colspan="{{ data.headers | length }}" class="muted">No hay recibos en este periodo.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="muted small">Generado el {{ data.generado_at.strftime('%Y-%m-%d %H:%M') }}</p>
+</section>
+{% endblock %}
+{% endif %}

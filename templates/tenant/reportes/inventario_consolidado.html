@@ -1,0 +1,90 @@
+{% if print_mode %}
+{% extends 'tenant/reportes/_print_wrapper.html' %}
+{% block print_title %}Inventario consolidado{% endblock %}
+{% block print_header %}
+  <h1>Inventario consolidado</h1>
+  <div class="muted small">
+    Fecha corte: {{ data.params.fecha_corte }}
+    {% if filtros.comunidad %} · Comunidad #{{ filtros.comunidad }}{% endif %}
+  </div>
+  <div class="muted small">
+    Total artefactos: {{ data.totales.total_artefactos or 0 }} ·
+    Viviendas con inventario: {{ data.totales.viviendas_con_inventario or 0 }}
+  </div>
+{% endblock %}
+{% block print_content %}
+  <table>
+    <thead><tr>{% for h in data.headers %}<th>{{ h }}</th>{% endfor %}</tr></thead>
+    <tbody>
+      {% for r in data.rows %}
+        <tr>
+          <td>{{ r.artefacto }}</td>
+          <td>{{ r.artefacto_origen }}</td>
+          <td>{{ r.artefacto_codigo }}</td>
+          <td>{{ r.comunidad or '—' }}</td>
+          <td class="right">{{ r.cantidad_total }}</td>
+          <td class="right">{{ r.n_viviendas }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}
+{% else %}
+{% extends 'base.html' %}
+{% block title %}Inventario consolidado{% endblock %}
+{% block content %}
+<section class="page reporte-page">
+  <div class="page-header">
+    <h1 class="page-title">Inventario consolidado</h1>
+    <div class="export-buttons">
+      <a href="?format=csv{% if filtros.comunidad %}&comunidad={{ filtros.comunidad }}{% endif %}{% if filtros.fecha_corte %}&fecha_corte={{ filtros.fecha_corte }}{% endif %}" class="btn btn--ghost">Exportar CSV</a>
+      <a href="?format=pdf{% if filtros.comunidad %}&comunidad={{ filtros.comunidad }}{% endif %}{% if filtros.fecha_corte %}&fecha_corte={{ filtros.fecha_corte }}{% endif %}" class="btn btn--ghost">Exportar PDF</a>
+    </div>
+  </div>
+
+  <form method="get" class="filters" hx-boost="false">
+    <select name="comunidad">
+      <option value="">— Todas las comunidades —</option>
+      {% for c in comunidades %}
+        <option value="{{ c.id }}" {% if filtros.comunidad == c.id %}selected{% endif %}>{{ c.nombre }}</option>
+      {% endfor %}
+    </select>
+    <input type="date" name="fecha_corte" value="{{ filtros.fecha_corte or '' }}">
+    <button type="submit" class="btn btn--primary">Consultar</button>
+  </form>
+
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-label">Total artefactos</div>
+      <div class="kpi-value">{{ data.totales.total_artefactos or 0 }}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Viviendas con inventario</div>
+      <div class="kpi-value">{{ data.totales.viviendas_con_inventario or 0 }}</div>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table class="table reporte-table">
+      <thead><tr>{% for h in data.headers %}<th>{{ h }}</th>{% endfor %}</tr></thead>
+      <tbody>
+        {% for r in data.rows %}
+          <tr>
+            <td>{{ r.artefacto }}</td>
+            <td><span class="muted small">{{ r.artefacto_origen }}</span></td>
+            <td><code>{{ r.artefacto_codigo }}</code></td>
+            <td>{{ r.comunidad or '—' }}</td>
+            <td class="right"><strong>{{ r.cantidad_total }}</strong></td>
+            <td class="right">{{ r.n_viviendas }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="{{ data.headers | length }}" class="muted">Sin inventario para esa fecha y filtros.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="muted small">Generado el {{ data.generado_at.strftime('%Y-%m-%d %H:%M') }} · Fecha corte: {{ data.params.fecha_corte }}</p>
+</section>
+{% endblock %}
+{% endif %}

@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% block title %}Reportes{% endblock %}
+{% block content %}
+<section class="page">
+  <h1 class="page-title">Reportes</h1>
+  <p class="page-subtitle">Consultas y reportes para el equipo municipal.</p>
+
+  <div class="reportes-grid">
+    {% if ctx.user | puede('reportes', 'padron', 'ver') %}
+      <a href="/app/reportes/padron" class="reporte-card">
+        <h2>Padrón global</h2>
+        <p>Listado completo de viviendas, con filtros por comunidad, estado y fechas.</p>
+      </a>
+    {% endif %}
+
+    {% if ctx.user | puede('reportes', 'recaudacion', 'ver') %}
+      <a href="/app/reportes/recaudacion" class="reporte-card">
+        <h2>Recaudación mensual</h2>
+        <p>Cuánto se emitió, cobró y queda pendiente en un mes específico.</p>
+      </a>
+    {% endif %}
+
+    {% if ctx.user | puede('reportes', 'cobranza', 'ver') %}
+      <a href="/app/reportes/cobranza-pendiente" class="reporte-card">
+        <h2>Cobranza pendiente</h2>
+        <p>Recibos no pagados, agrupados por antigüedad (0-30, 31-60, 61-90, 90+ días).</p>
+      </a>
+    {% endif %}
+
+    {% if ctx.user | puede('reportes', 'inventario', 'ver') %}
+      <a href="/app/reportes/inventario" class="reporte-card">
+        <h2>Inventario consolidado</h2>
+        <p>Total de artefactos por tipo y comunidad, a una fecha de corte.</p>
+      </a>
+    {% endif %}
+
+    {% if ctx.user | puede('reportes', 'dashboard', 'ver') %}
+      <a href="/app/reportes/dashboard" class="reporte-card reporte-card--featured">
+        <h2>Dashboard del alcalde</h2>
+        <p>Resumen ejecutivo en una página: KPIs, cobranza del mes y top morosos.</p>
+      </a>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

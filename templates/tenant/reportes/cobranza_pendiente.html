@@ -1,0 +1,138 @@
+{% if print_mode %}
+{% extends 'tenant/reportes/_print_wrapper.html' %}
+{% block print_title %}Cobranza pendiente{% endblock %}
+{% block print_header %}
+  <h1>Cobranza pendiente</h1>
+  <div class="muted small">
+    {% if filtros.comunidad %}Comunidad #{{ filtros.comunidad }} · {% endif %}
+    Total recibos: {{ data.totales.total_recibos }} ·
+    Saldo: S/ {{ '%.2f' | format(data.totales.total_saldo or 0) }}
+  </div>
+{% endblock %}
+{% block print_content %}
+  <h2>Antigüedad (aging)</h2>
+  <table>
+    <thead><tr><th>Bucket</th><th class="right">N° recibos</th><th class="right">Monto (S/.)</th></tr></thead>
+    <tbody>
+      {% for b in data.totales.buckets %}
+        <tr>
+          <td>{{ b.bucket }}</td>
+          <td class="right">{{ b.n }}</td>
+          <td class="right">{{ '%.2f' | format(b.monto or 0) }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h2>Recibos pendientes</h2>
+  <table>
+    <thead><tr>{% for h in data.headers %}<th>{{ h }}</th>{% endfor %}</tr></thead>
+    <tbody>
+      {% for r in data.rows %}
+        <tr>
+          <td>{{ r.numero_recibo }}</td>
+          <td>{{ r.codigo_interno }}</td>
+          <td>{{ r.comunidad or '—' }}</td>
+          <td>{{ r.responsable_pago or '—' }}</td>
+          <td>{{ r.dni_responsable or '—' }}</td>
+          <td>{{ r.telefono or '—' }}</td>
+          <td>{{ r.periodo_anio }}</td>
+          <td>{{ r.periodo_mes }}</td>
+          <td>{{ r.fecha_emision }}</td>
+          <td>{{ r.fecha_vencimiento }}</td>
+          <td class="right">{{ '%.2f' | format(r.total) }}</td>
+          <td class="right">{{ '%.2f' | format(r.monto_pagado) }}</td>
+          <td class="right">{{ '%.2f' | format(r.saldo_pendiente) }}</td>
+          <td class="right">{{ r.dias_atraso }}</td>
+          <td>{{ r.aging_bucket }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}
+{% else %}
+{% extends 'base.html' %}
+{% block title %}Cobranza pendiente{% endblock %}
+{% block content %}
+<section class="page reporte-page">
+  <div class="page-header">
+    <h1 class="page-title">Cobranza pendiente</h1>
+    <div class="export-buttons">
+      <a href="?format=csv{% if filtros.comunidad %}&comunidad={{ filtros.comunidad }}{% endif %}" class="btn btn--ghost">Exportar CSV</a>
+      <a href="?format=pdf{% if filtros.comunidad %}&comunidad={{ filtros.comunidad }}{% endif %}" class="btn btn--ghost">Exportar PDF</a>
+    </div>
+  </div>
+
+  <form method="get" class="filters" hx-boost="false">
+    <select name="comunidad">
+      <option value="">— Todas las comunidades —</option>
+      {% for c in comunidades %}
+        <option value="{{ c.id }}" {% if filtros.comunidad == c.id %}selected{% endif %}>{{ c.nombre }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn btn--primary">Filtrar</button>
+  </form>
+
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-label">Recibos pendientes</div>
+      <div class="kpi-value">{{ data.totales.total_recibos }}</div>
+    </div>
+    <div class="kpi-card kpi-card--accent">
+      <div class="kpi-label">Saldo total</div>
+      <div class="kpi-value">S/ {{ '%.2f' | format(data.totales.total_saldo or 0) }}</div>
+    </div>
+  </div>
+
+  <h2>Antigüedad (aging)</h2>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>Bucket</th><th class="right">N°</th><th class="right">Monto</th></tr></thead>
+      <tbody>
+        {% for b in data.totales.buckets %}
+          <tr>
+            <td>{{ b.bucket }}</td>
+            <td class="right">{{ b.n }}</td>
+            <td class="right">S/ {{ '%.2f' | format(b.monto or 0) }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="3" class="muted">Sin recibos pendientes.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Detalle de recibos</h2>
+  <div class="table-wrap">
+    <table class="table reporte-table">
+      <thead><tr>{% for h in data.headers %}<th>{{ h }}</th>{% endfor %}</tr></thead>
+      <tbody>
+        {% for r in data.rows %}
+          <tr>
+            <td><code>{{ r.numero_recibo }}</code></td>
+            <td><code>{{ r.codigo_interno }}</code></td>
+            <td>{{ r.comunidad or '—' }}</td>
+            <td>{{ r.responsable_pago or '—' }}</td>
+            <td>{{ r.dni_responsable or '—' }}</td>
+            <td>{{ r.telefono or '—' }}</td>
+            <td>{{ r.periodo_anio }}</td>
+            <td>{{ '%02d' | format(r.periodo_mes) }}</td>
+            <td>{{ r.fecha_emision }}</td>
+            <td>{{ r.fecha_vencimiento }}</td>
+            <td class="right">{{ '%.2f' | format(r.total) }}</td>
+            <td class="right">{{ '%.2f' | format(r.monto_pagado) }}</td>
+            <td class="right"><strong>{{ '%.2f' | format(r.saldo_pendiente) }}</strong></td>
+            <td class="right">{{ r.dias_atraso }}</td>
+            <td>{{ r.aging_bucket }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="{{ data.headers | length }}" class="muted">Sin recibos pendientes.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="muted small">Generado el {{ data.generado_at.strftime('%Y-%m-%d %H:%M') }}</p>
+</section>
+{% endblock %}
+{% endif %}

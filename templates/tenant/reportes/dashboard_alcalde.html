@@ -1,0 +1,154 @@
+{% if print_mode %}
+{% extends 'tenant/reportes/_print_wrapper.html' %}
+{% block print_title %}Dashboard ejecutivo{% endblock %}
+{% block print_header %}
+  <h1>Dashboard ejecutivo</h1>
+  <div class="muted small">Mes actual: {{ data.mes_actual.periodo }} · Comparativo: {{ data.mes_anterior.periodo }}</div>
+{% endblock %}
+{% block print_content %}
+  <div class="kpi-row">
+    <div class="kpi-box"><div class="lbl">Viviendas empadronadas</div><div class="val">{{ data.kpis.viviendas_activas or 0 }}</div></div>
+    <div class="kpi-box"><div class="lbl">Moradores activos</div><div class="val">{{ data.kpis.moradores_activos or 0 }}</div></div>
+    <div class="kpi-box"><div class="lbl">Comunidades</div><div class="val">{{ data.kpis.comunidades_activas or 0 }}</div></div>
+    <div class="kpi-box"><div class="lbl">% Cobranza {{ data.mes_actual.periodo }}</div><div class="val">{{ data.mes_actual.pct_cobranza }}%</div></div>
+  </div>
+
+  <h2>Mes actual · {{ data.mes_actual.periodo }}</h2>
+  <table>
+    <tr><th>Recibos emitidos</th><td class="right">{{ data.mes_actual.n_recibos or 0 }}</td></tr>
+    <tr><th>Monto emitido</th><td class="right">S/ {{ '%.2f' | format(data.mes_actual.emitido or 0) }}</td></tr>
+    <tr><th>Monto cobrado</th><td class="right">S/ {{ '%.2f' | format(data.mes_actual.cobrado or 0) }}</td></tr>
+    <tr><th>Saldo pendiente</th><td class="right">S/ {{ '%.2f' | format(data.mes_actual.pendiente or 0) }}</td></tr>
+    <tr><th>Total subsidiado</th><td class="right">S/ {{ '%.2f' | format(data.mes_actual.subsidiado or 0) }}</td></tr>
+  </table>
+
+  <h2>Mes anterior · {{ data.mes_anterior.periodo }}</h2>
+  <table>
+    <tr><th>Recibos emitidos</th><td class="right">{{ data.mes_anterior.n_recibos or 0 }}</td></tr>
+    <tr><th>Monto emitido</th><td class="right">S/ {{ '%.2f' | format(data.mes_anterior.emitido or 0) }}</td></tr>
+    <tr><th>Monto cobrado</th><td class="right">S/ {{ '%.2f' | format(data.mes_anterior.cobrado or 0) }}</td></tr>
+  </table>
+
+  {% if data.subsidio_vigente %}
+  <h2>Subsidio vigente</h2>
+  <table>
+    <tr><th>Nombre</th><td>{{ data.subsidio_vigente.nombre }}</td></tr>
+    <tr><th>Porcentaje</th><td>{{ data.subsidio_vigente.porcentaje }}%</td></tr>
+    <tr><th>Base legal</th><td>{{ data.subsidio_vigente.base_legal or '—' }}</td></tr>
+    <tr><th>Vigente desde</th><td>{{ data.subsidio_vigente.vigente_desde }}</td></tr>
+  </table>
+  {% endif %}
+
+  <h2>Top 5 viviendas con mayor deuda</h2>
+  <table>
+    <thead><tr><th>Vivienda</th><th>Comunidad</th><th>Responsable</th><th class="right">Recibos</th><th class="right">Deuda</th></tr></thead>
+    <tbody>
+      {% for v in data.top_deuda %}
+        <tr>
+          <td>{{ v.codigo_interno }}</td>
+          <td>{{ v.comunidad or '—' }}</td>
+          <td>{{ v.responsable or '—' }}</td>
+          <td class="right">{{ v.recibos_pendientes }}</td>
+          <td class="right">S/ {{ '%.2f' | format(v.deuda_total) }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="5" class="muted">Sin deuda pendiente.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}
+{% else %}
+{% extends 'base.html' %}
+{% block title %}Dashboard del alcalde{% endblock %}
+{% block content %}
+<section class="page dashboard-page">
+  <div class="page-header">
+    <h1 class="page-title">Dashboard ejecutivo</h1>
+    <div class="export-buttons">
+      <a href="?format=pdf" class="btn btn--ghost">Exportar PDF</a>
+      <a href="?format=csv" class="btn btn--ghost">Exportar CSV</a>
+    </div>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-label">Viviendas empadronadas</div>
+      <div class="kpi-value">{{ data.kpis.viviendas_activas or 0 }}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Moradores activos</div>
+      <div class="kpi-value">{{ data.kpis.moradores_activos or 0 }}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Comunidades</div>
+      <div class="kpi-value">{{ data.kpis.comunidades_activas or 0 }}</div>
+    </div>
+    <div class="kpi-card kpi-card--accent">
+      <div class="kpi-label">% Cobranza {{ data.mes_actual.periodo }}</div>
+      <div class="kpi-value">{{ data.mes_actual.pct_cobranza }}%</div>
+    </div>
+  </div>
+
+  <div class="dashboard-row">
+    <div class="dashboard-col">
+      <h2>Mes actual · {{ data.mes_actual.periodo }}</h2>
+      <table class="table">
+        <tr><th>Recibos emitidos</th><td class="right">{{ data.mes_actual.n_recibos or 0 }}</td></tr>
+        <tr><th>Monto emitido</th><td class="right">S/ {{ '%.2f' | format(data.mes_actual.emitido or 0) }}</td></tr>
+        <tr><th>Monto cobrado</th><td class="right">S/ {{ '%.2f' | format(data.mes_actual.cobrado or 0) }}</td></tr>
+        <tr><th>Saldo pendiente</th><td class="right">S/ {{ '%.2f' | format(data.mes_actual.pendiente or 0) }}</td></tr>
+        <tr><th>Total subsidiado</th><td class="right">S/ {{ '%.2f' | format(data.mes_actual.subsidiado or 0) }}</td></tr>
+      </table>
+    </div>
+    <div class="dashboard-col">
+      <h2>Mes anterior · {{ data.mes_anterior.periodo }}</h2>
+      <table class="table">
+        <tr><th>Recibos emitidos</th><td class="right">{{ data.mes_anterior.n_recibos or 0 }}</td></tr>
+        <tr><th>Monto emitido</th><td class="right">S/ {{ '%.2f' | format(data.mes_anterior.emitido or 0) }}</td></tr>
+        <tr><th>Monto cobrado</th><td class="right">S/ {{ '%.2f' | format(data.mes_anterior.cobrado or 0) }}</td></tr>
+      </table>
+    </div>
+  </div>
+
+  {% if data.subsidio_vigente %}
+  <div class="dashboard-section">
+    <h2>Subsidio vigente</h2>
+    <p>
+      <strong>{{ data.subsidio_vigente.nombre }}</strong> ·
+      <span class="badge badge-ok">{{ data.subsidio_vigente.porcentaje }}%</span>
+    </p>
+    <p class="muted small">
+      {{ data.subsidio_vigente.base_legal or '' }} · desde {{ data.subsidio_vigente.vigente_desde }}
+      {% if data.subsidio_vigente.vigente_hasta %} hasta {{ data.subsidio_vigente.vigente_hasta }}{% endif %}
+    </p>
+  </div>
+  {% endif %}
+
+  <div class="dashboard-section">
+    <h2>Top 5 viviendas con mayor deuda</h2>
+    {% if data.top_deuda %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Vivienda</th><th>Comunidad</th><th>Responsable</th><th class="right">Recibos</th><th class="right">Deuda</th></tr></thead>
+        <tbody>
+          {% for v in data.top_deuda %}
+            <tr>
+              <td><code>{{ v.codigo_interno }}</code></td>
+              <td>{{ v.comunidad or '—' }}</td>
+              <td>{{ v.responsable or '—' }}</td>
+              <td class="right">{{ v.recibos_pendientes }}</td>
+              <td class="right"><strong>S/ {{ '%.2f' | format(v.deuda_total) }}</strong></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="muted">No hay viviendas con deuda pendiente.</p>
+    {% endif %}
+  </div>
+
+  <p class="muted small">Generado el {{ data.generado_at.strftime('%Y-%m-%d %H:%M') }}</p>
+</section>
+{% endblock %}
+{% endif %}
