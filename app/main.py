@@ -11,6 +11,7 @@ from app.dependencies import RedirectException
 from app.jinja_filters import register_filters
 from app.middleware.csrf_cookie import CSRFCookieMiddleware
 from app.routes import auth as auth_routes
+from app.routes import portal as portal_routes
 from app.routes.superadmin import dashboard as sa_dashboard
 from app.routes.superadmin import municipios as sa_municipios
 from app.routes.tenant import dashboard as tenant_dashboard
@@ -21,6 +22,12 @@ from app.routes.tenant import padron as tenant_padron
 from app.routes.tenant import api_dni as tenant_api_dni
 from app.routes.tenant import tarifas as tenant_tarifas
 from app.routes.tenant import configuracion as tenant_configuracion
+from app.routes.tenant import subsidios as tenant_subsidios
+from app.routes.tenant import lotes as tenant_lotes
+from app.routes.tenant import cobranza as tenant_cobranza
+from app.routes.tenant import caja as tenant_caja
+from app.routes.tenant import recibo_pdf as tenant_recibo_pdf
+from app.routes.tenant import pago_pdf as tenant_pago_pdf
 
 logging.basicConfig(
     level=logging.INFO if settings.ENVIRONMENT == "production" else logging.DEBUG,
@@ -73,6 +80,7 @@ async def healthz():
 
 
 app.include_router(auth_routes.router)
+app.include_router(portal_routes.router)
 app.include_router(sa_dashboard.router)
 app.include_router(sa_municipios.router)
 app.include_router(tenant_dashboard.router)
@@ -83,3 +91,9 @@ app.include_router(tenant_padron.router)
 app.include_router(tenant_api_dni.router)
 app.include_router(tenant_tarifas.router)
 app.include_router(tenant_configuracion.router)
+app.include_router(tenant_subsidios.router)
+app.include_router(tenant_lotes.router)
+app.include_router(tenant_cobranza.router)
+app.include_router(tenant_caja.router)
+app.include_router(tenant_recibo_pdf.router)
+app.include_router(tenant_pago_pdf.router)
