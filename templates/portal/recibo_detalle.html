@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% block title %}Recibo {{ cuota.numero_recibo }}{% endblock %}
+{% block content %}
+<section class="page">
+  <div class="page-header">
+    <h1 class="page-title">Recibo <code>{{ cuota.numero_recibo }}</code></h1>
+    <a href="/portal/" class="btn btn--ghost">← Mis recibos</a>
+  </div>
+
+  <div class="card">
+    <p><strong>Periodo:</strong> {{ periodo_label }}</p>
+    <p><strong>Emisión:</strong> {{ cuota.fecha_emision }} · <strong>Vence:</strong> {{ cuota.fecha_vencimiento }}</p>
+    <p><strong>Subtotal:</strong> S/ {{ '%.2f' | format(cuota.subtotal | float) }}</p>
+    {% if cuota.subsidio_id %}
+      <p><strong>Subsidio aplicado:</strong> {{ cuota.subsidio_porcentaje }}% — {{ cuota.subsidio_nombre }} ({{ cuota.subsidio_base_legal }})</p>
+      <p><strong>Monto subsidiado:</strong> – S/ {{ '%.2f' | format(cuota.subsidio_monto | float) }}</p>
+    {% endif %}
+    <p><strong>Total a pagar:</strong> <strong>S/ {{ '%.2f' | format(cuota.total | float) }}</strong></p>
+    <p><strong>Pagado:</strong> S/ {{ '%.2f' | format(cuota.monto_pagado | float) }} · <strong>Saldo:</strong> S/ {{ '%.2f' | format(cuota.saldo_pendiente | float) }}</p>
+    <p><strong>Estado:</strong>
+      {% if cuota.estado == 'pagado' %}<span class="badge badge-ok">Pagado</span>
+      {% elif cuota.estado == 'parcial' %}<span class="badge">Parcial</span>
+      {% elif cuota.estado == 'pendiente' %}<span class="badge badge-off">Pendiente</span>
+      {% else %}<span class="badge">{{ cuota.estado }}</span>{% endif %}
+    </p>
+  </div>
+
+  <h2>Detalle del cálculo</h2>
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr><th>Concepto</th><th>Cantidad</th><th>Tarifa</th><th>Importe</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Cargo fijo mensual</td>
+          <td>—</td>
+          <td>—</td>
+          <td>S/ {{ '%.2f' | format(cuota.cargo_fijo | float) }}</td>
+        </tr>
+        {% if (cuota.adicional_morador | float) > 0 %}
+        <tr>
+          <td>Adicional moradores</td>
+          <td>{{ cuota.n_moradores }}</td>
+          <td>—</td>
+          <td>S/ {{ '%.2f' | format(cuota.adicional_morador | float) }}</td>
+        </tr>
+        {% endif %}
+        {% for a in cuota.detalle_aparatos_json or [] %}
+        <tr>
+          <td>{{ a.nombre }}</td>
+          <td>{{ a.cantidad }}</td>
+          <td>S/ {{ '%.2f' | format(a.tarifa | float) }}</td>
+          <td>S/ {{ '%.2f' | format(a.importe | float) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div style="margin-top: var(--space-3)">
+    <a href="/portal/recibos/{{ cuota.id }}/pdf" target="_blank" class="btn btn--primary">Descargar PDF</a>
+  </div>
+</section>
+{% endblock %}

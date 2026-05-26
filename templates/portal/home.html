@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block title %}Tu cuenta · Vivienda {{ vivienda.codigo_interno }}{% endblock %}
+{% block content %}
+<section class="page">
+  <h1 class="page-title">Tu cuenta · <code>{{ vivienda.codigo_interno }}</code></h1>
+  <p class="page-subtitle">
+    {{ vivienda.comunidad_nombre or 'Sin comunidad' }}
+    {% if vivienda.referencia_fisica %} · {{ vivienda.referencia_fisica }}{% endif %}
+  </p>
+
+  <div class="metric-row">
+    <div class="metric">
+      <span class="metric-label">Deuda al día</span>
+      <span class="metric-value">S/ {{ '%.2f' | format(saldo_total) }}</span>
+    </div>
+    <div class="metric">
+      <span class="metric-label">Recibos pendientes</span>
+      <span class="metric-value">{{ pendientes_count }}</span>
+    </div>
+  </div>
+
+  <h2>Tus recibos</h2>
+  {% if cuotas | length == 0 %}
+    <p class="muted">Aún no se han emitido recibos para tu vivienda.</p>
+  {% else %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>N°</th>
+          <th>Periodo</th>
+          <th>Vence</th>
+          <th>Total</th>
+          <th>Pagado</th>
+          <th>Saldo</th>
+          <th>Estado</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in cuotas %}
+        <tr>
+          <td><code>{{ c.numero_recibo }}</code></td>
+          <td>{{ nombre_periodo(c.periodo_anio, c.periodo_mes) }}</td>
+          <td class="muted">{{ c.fecha_vencimiento }}</td>
+          <td>S/ {{ '%.2f' | format(c.total | float) }}</td>
+          <td>S/ {{ '%.2f' | format(c.monto_pagado | float) }}</td>
+          <td><strong>S/ {{ '%.2f' | format(c.saldo_pendiente | float) }}</strong></td>
+          <td>
+            {% if c.estado == 'pagado' %}<span class="badge badge-ok">Pagado</span>
+            {% elif c.estado == 'parcial' %}<span class="badge">Parcial</span>
+            {% elif c.estado == 'pendiente' %}<span class="badge badge-off">Pendiente</span>
+            {% else %}<span class="badge">{{ c.estado }}</span>{% endif %}
+          </td>
+          <td>
+            <a href="/portal/recibos/{{ c.id }}" class="btn-link">Ver</a>
+            <a href="/portal/recibos/{{ c.id }}/pdf" target="_blank" class="btn-link">PDF</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <div style="margin-top: var(--space-4)">
+    <a href="/logout" class="btn btn--ghost">Cerrar sesión</a>
+  </div>
+</section>
+{% endblock %}
