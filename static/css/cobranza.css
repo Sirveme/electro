@@ -1,0 +1,127 @@
+/*
+ * electro — cobranza.css
+ * Estilos específicos del módulo de cobranza, lotes, caja y subsidios.
+ */
+
+.metric-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-3);
+  margin: var(--space-3) 0;
+}
+
+.metric {
+  background: var(--surface-2, #1c2230);
+  border: 1px solid var(--border-color, #2a2f3a);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.metric-label {
+  font-size: 0.8rem;
+  color: var(--muted, #8a93a4);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.metric-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--text, #e9eef7);
+}
+
+.card {
+  background: var(--surface-2, #1c2230);
+  border: 1px solid var(--border-color, #2a2f3a);
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-4);
+  margin: var(--space-3) 0;
+}
+
+.card p {
+  margin: 4px 0;
+}
+
+.alert {
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  margin: var(--space-3) 0;
+  border: 1px solid transparent;
+}
+
+.alert-warning {
+  background: rgba(229, 165, 10, 0.12);
+  color: #f0c465;
+  border-color: rgba(229, 165, 10, 0.4);
+}
+
+.alert-info {
+  background: rgba(9, 88, 217, 0.12);
+  color: #6aaaff;
+  border-color: rgba(9, 88, 217, 0.4);
+}
+
+.alert-success {
+  background: rgba(48, 164, 108, 0.12);
+  color: #62d59a;
+  border-color: rgba(48, 164, 108, 0.4);
+}
+
+.alert-danger {
+  background: rgba(217, 45, 32, 0.12);
+  color: #ff7b6b;
+  border-color: rgba(217, 45, 32, 0.4);
+}
+
+/* Form row de 2 columnas para fechas/periodos */
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-3);
+}
+
+/* Lista de checkboxes (selección múltiple de comunidades) */
+.checkbox-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--border-color, #2a2f3a);
+  border-radius: var(--radius);
+  background: var(--surface-2, #1c2230);
+  cursor: pointer;
+}
+
+.checkbox-item:hover {
+  border-color: var(--primary, #0958d9);
+}
+
+/* Fila de pago expandida bajo cada recibo en la tabla */
+.pago-row {
+  background: var(--surface-3, #232a39);
+}
+
+.pago-row td {
+  padding: var(--space-3);
+}
+
+.pago-form {
+  margin: 0;
+}
+
+.row-anulada {
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+
+/* .btn--danger ya vive en components.css */

@@ -1,0 +1,46 @@
+/*
+ * recibos_pdf.css — Hoja de estilos importada en runtime por WeasyPrint
+ * (también incluida en los templates de recibo/comprobante como <style> inline).
+ * Las reglas básicas viven en cada template para que ReportLab no las necesite.
+ */
+
+@page {
+  size: Letter;
+  margin: 14mm 12mm;
+}
+
+body {
+  font-family: 'Helvetica', Arial, sans-serif;
+  font-size: 9pt;
+  color: #111;
+}
+
+.head { border-bottom: 2pt solid #111; padding-bottom: 6pt; }
+.head h1 { margin: 0; font-size: 16pt; }
+.head .muni { font-weight: 700; font-size: 10pt; }
+.head .small { font-size: 8pt; color: #666; }
+
+.meta { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4pt 12pt; margin-top: 6pt; }
+.meta b { min-width: 70pt; display: inline-block; }
+
+table { width: 100%; border-collapse: collapse; }
+th, td { border-bottom: 1px solid #ddd; padding: 3pt 4pt; }
+th { background: #f3f3f3; }
+td.num { text-align: right; }
+
+.totales { width: 60%; margin-left: auto; margin-top: 6pt; }
+.totales td { padding: 2pt 4pt; border: none; }
+.totales .total { font-weight: 700; font-size: 12pt; border-top: 2pt solid #111; padding-top: 4pt; }
+
+.subsidio { color: #6a040f; }
+
+.monto-box {
+  margin-top: 14pt;
+  padding: 8pt 12pt;
+  background: #f0f7ff;
+  border: 2pt solid #0958d9;
+  text-align: center;
+}
+.monto-box .value { font-size: 22pt; font-weight: 700; color: #0958d9; }
+
+.footer { font-size: 7.5pt; color: #888; text-align: center; margin-top: 14pt; }
