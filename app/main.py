@@ -28,6 +28,7 @@ from app.routes.tenant import cobranza as tenant_cobranza
 from app.routes.tenant import caja as tenant_caja
 from app.routes.tenant import recibo_pdf as tenant_recibo_pdf
 from app.routes.tenant import pago_pdf as tenant_pago_pdf
+from app.routes.tenant import reportes as tenant_reportes
 
 logging.basicConfig(
     level=logging.INFO if settings.ENVIRONMENT == "production" else logging.DEBUG,
@@ -97,3 +98,4 @@ app.include_router(tenant_cobranza.router)
 app.include_router(tenant_caja.router)
 app.include_router(tenant_recibo_pdf.router)
 app.include_router(tenant_pago_pdf.router)
+app.include_router(tenant_reportes.router)
