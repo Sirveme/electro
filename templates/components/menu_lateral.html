@@ -37,6 +37,19 @@
     <a href="/app/configuracion" class="side-menu-item">General</a>
     <a href="/app/cuenta/cambiar-clave" class="side-menu-item">Mi clave</a>
   </div>
+  {% if (ctx.user | puede('reportes', 'padron', 'ver'))
+      or (ctx.user | puede('reportes', 'recaudacion', 'ver'))
+      or (ctx.user | puede('reportes', 'cobranza', 'ver'))
+      or (ctx.user | puede('reportes', 'inventario', 'ver'))
+      or (ctx.user | puede('reportes', 'dashboard', 'ver')) %}
+  <div class="side-menu-section">
+    <div class="side-menu-section-title">Reportes</div>
+    <a href="/app/reportes/" class="side-menu-item">Centro de reportes</a>
+    {% if ctx.user | puede('reportes', 'dashboard', 'ver') %}
+      <a href="/app/reportes/dashboard" class="side-menu-item">Dashboard alcalde</a>
+    {% endif %}
+  </div>
+  {% endif %}
   {% endif %}
 
   <div class="theme-toggle"
