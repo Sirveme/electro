@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+{% block title %}Inventario de {{ vivienda.codigo_interno }}{% endblock %}
+{% block content %}
+<section class="page">
+  <div class="page-header">
+    <h1 class="page-title">Inventario · <code>{{ vivienda.codigo_interno }}</code></h1>
+    <a href="/app/padron/{{ vivienda.codigo_interno }}" class="btn btn--ghost">Volver a la ficha</a>
+  </div>
+  <p class="muted">
+    Ajusta la cantidad de cada artefacto. Si la cantidad baja a 0, el artefacto
+    se da de baja con fecha de hoy. Las altas y cambios usan effective dating
+    (vigente_desde = hoy).
+  </p>
+
+  <input type="text" id="filtro-artefactos" class="filtro-input" placeholder="Buscar artefacto..."
+    _="on input
+        set q to my value.toLowerCase()
+        for row in <.inv-row/>
+          if row.dataset.search.includes(q) then show row else hide row end
+        end">
+
+  <form method="post"
+        action="/app/padron/{{ vivienda.codigo_interno }}/inventario/agregar"
+        class="form" id="form-inventario"
+        _="on submit call window.prepararPayloadInventario()">
+    {% include 'components/csrf_input.html' %}
+    <input type="hidden" name="cantidades_json" id="cantidades-json" value="[]">
+
+    <div class="inv-list">
+      {% for a in catalogo %}
+        {% set actual = cantidades_actuales.get(('catalogo', a.codigo), 0) %}
+        <div class="inv-row" data-search="{{ (a.nombre ~ ' ' ~ a.codigo ~ ' ' ~ a.categoria) | lower }}">
+          <span class="inv-icon">{{ a.icono or '·' }}</span>
+          <div class="inv-info">
+            <strong>{{ a.nombre }}</strong>
+            <small class="muted">{{ a.categoria }} · S/. {{ '%.2f' | format(a.tarifa or 0) }}/mes</small>
+            {% if actual > 0 %}<small class="muted">· actual: {{ actual }}</small>{% endif %}
+          </div>
+          <input type="number" class="inv-cantidad" min="0" value="{{ actual }}"
+                 data-origen="catalogo" data-codigo="{{ a.codigo }}" data-actual="{{ actual }}">
+        </div>
+      {% endfor %}
+      {% for a in propios %}
+        {% set actual = cantidades_actuales.get(('propio', a.codigo), 0) %}
+        <div class="inv-row" data-search="{{ (a.nombre ~ ' ' ~ a.codigo ~ ' ' ~ a.categoria) | lower }}">
+          <span class="inv-icon">★</span>
+          <div class="inv-info">
+            <strong>{{ a.nombre }}</strong>
+            <small class="muted">{{ a.categoria }} · S/. {{ '%.2f' | format(a.tarifa or 0) }}/mes · propio</small>
+            {% if actual > 0 %}<small class="muted">· actual: {{ actual }}</small>{% endif %}
+          </div>
+          <input type="number" class="inv-cantidad" min="0" value="{{ actual }}"
+                 data-origen="propio" data-codigo="{{ a.codigo }}" data-actual="{{ actual }}">
+        </div>
+      {% endfor %}
+    </div>
+
+    <div class="form-actions">
+      <a href="/app/padron/{{ vivienda.codigo_interno }}" class="btn btn--ghost">Cancelar</a>
+      <button type="submit" class="btn btn--primary">Guardar inventario</button>
+    </div>
+  </form>
+</section>
+
+<script>
+  // Construye el payload JSON con los artefactos cuya cantidad cambio
+  // (incluye los que pasan a 0 para que la baja sea explicita).
+  window.prepararPayloadInventario = function() {
+    var items = [];
+    document.querySelectorAll('.inv-cantidad').forEach(function(inp) {
+      var cant = parseInt(inp.value, 10);
+      if (isNaN(cant) || cant < 0) cant = 0;
+      var actual = parseInt(inp.dataset.actual, 10) || 0;
+      // Solo mandamos si cambio (incluyendo bajar a 0)
+      if (cant !== actual) {
+        items.push({
+          origen: inp.dataset.origen,
+          codigo: inp.dataset.codigo,
+          cantidad: cant
+        });
+      }
+    });
+    document.getElementById('cantidades-json').value = JSON.stringify(items);
+  };
+</script>
+{% endblock %}
