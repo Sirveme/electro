@@ -3,14 +3,15 @@
      {% include 'components/kebab_menu.html' %}
    {% endwith %}
 #}
-<div class="kebab" _="on click toggle .open on the next <.kebab-menu/>">
+<div class="kebab" _="on click halt the event
+    then toggle .open on the first <.kebab-menu/> in me">
   <button type="button" class="kebab-trigger" aria-label="Acciones">⋮</button>
   <div class="kebab-menu">
     {% for it in items %}
       {% if it.href %}
-        <a href="{{ it.href }}" class="kebab-item">{{ it.label }}</a>
+        <a href="{{ it.href }}" class="kebab-item{% if it.danger %} kebab-item--danger{% endif %}">{{ it.label }}</a>
       {% else %}
-        <button type="button" class="kebab-item kebab-item--btn" {% if it.hyperscript %}_="{{ it.hyperscript }}"{% endif %}>
+        <button type="button" class="kebab-item kebab-item--btn{% if it.danger %} kebab-item--danger{% endif %}" {% if it.hyperscript %}_="{{ it.hyperscript }}"{% endif %}>
           {{ it.label }}
         </button>
       {% endif %}
