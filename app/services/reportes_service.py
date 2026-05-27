@@ -22,6 +22,8 @@ from typing import Optional
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.utils.timezone import now_lima
+
 logger = logging.getLogger(__name__)
 
 
@@ -83,7 +85,7 @@ async def reporte_padron_global(
             "comunidad_id": comunidad_id, "estado": estado,
             "fecha_desde": fecha_desde, "fecha_hasta": fecha_hasta,
         },
-        "generado_at": datetime.now(),
+        "generado_at": now_lima(),
     }
 
 
@@ -143,7 +145,7 @@ async def reporte_recaudacion_mensual(
         "rows": por_comunidad,
         "totales": resumen,
         "params": {"anio": anio, "mes": mes},
-        "generado_at": datetime.now(),
+        "generado_at": now_lima(),
     }
 
 
@@ -232,7 +234,7 @@ async def reporte_cobranza_pendiente(
         "rows": rows,
         "totales": totales,
         "params": {"comunidad_id": comunidad_id},
-        "generado_at": datetime.now(),
+        "generado_at": now_lima(),
     }
 
 
@@ -291,7 +293,7 @@ async def reporte_inventario_consolidado(
         "rows": rows,
         "totales": dict(tot) if tot else {},
         "params": {"comunidad_id": comunidad_id, "fecha_corte": fecha},
-        "generado_at": datetime.now(),
+        "generado_at": now_lima(),
     }
 
 
@@ -383,5 +385,5 @@ async def dashboard_alcalde(session: AsyncSession) -> dict:
         "mes_anterior": {**mes_anterior, "periodo": f"{anio_ant}-{mes_ant:02d}"},
         "top_deuda": top_deuda,
         "subsidio_vigente": subsidio_vigente,
-        "generado_at": datetime.now(),
+        "generado_at": now_lima(),
     }
