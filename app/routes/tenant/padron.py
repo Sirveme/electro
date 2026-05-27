@@ -446,7 +446,12 @@ async def wizard_paso4_submit(
     return RedirectResponse(f"/app/padron/{result['codigo_interno']}", status_code=303)
 
 
-# ---------- agregar artefacto (ruta literal — VA ANTES de /{codigo}) ----------
+# ---------- agregar/sincronizar inventario (ruta literal — VA ANTES de /{codigo}) ----------
+
+def _puede_editar_inventario(user: CurrentUser) -> bool:
+    return (user.puede("inventario", "editar", "editar")
+            or user.puede("viviendas", "admin", "editar"))
+
 
 @router.get("/{codigo}/inventario/agregar", response_class=HTMLResponse)
 async def agregar_artefacto_form(
@@ -454,18 +459,26 @@ async def agregar_artefacto_form(
     codigo: str,
     user: CurrentUser = Depends(require_password_changed),
 ):
-    if not (user.puede("inventario", "editar", "editar")
-            or user.puede("viviendas", "admin", "editar")):
+    if not _puede_editar_inventario(user):
         raise HTTPException(403, "Sin permiso")
     async with tenant_session(user.tenant_schema) as ts:
         vivienda = (
             await ts.execute(
-                text("SELECT id, codigo_interno FROM viviendas WHERE codigo_interno = :c"),
+                text(
+                    "SELECT id, codigo_interno, anulada_at "
+                    "FROM viviendas WHERE codigo_interno = :c"
+                ),
                 {"c": codigo},
             )
-        ).first()
+        ).mappings().first()
         if not vivienda:
             raise HTTPException(404, "Vivienda no encontrada")
+        if vivienda["anulada_at"] is not None:
+            set_flash(
+                request, "error",
+                "No se puede modificar el inventario de una vivienda anulada.",
+            )
+            return RedirectResponse(f"/app/padron/{codigo}", status_code=303)
 
         catalogo = (
             await ts.execute(
@@ -479,7 +492,7 @@ async def agregar_artefacto_form(
                     "ORDER BY ac.categoria, ac.orden, ac.nombre"
                 )
             )
-        ).all()
+        ).mappings().all()
         propios = (
             await ts.execute(
                 text(
@@ -488,13 +501,24 @@ async def agregar_artefacto_form(
                     "ORDER BY categoria, orden, nombre"
                 )
             )
-        ).all()
+        ).mappings().all()
+
+        inv_actual = await inventario_actual_de_vivienda(ts, vivienda["id"])
+
+    # Indexar cantidades actuales por (origen, codigo) para prefill en el form.
+    cantidades_actuales = {
+        (r["artefacto_origen"], r["artefacto_codigo"]): int(r["cantidad"])
+        for r in inv_actual
+    }
 
     return request.app.state.templates.TemplateResponse(
         "tenant/padron/inventario_agregar.html",
         build_context(
-            request, user=user, vivienda=vivienda,
-            catalogo=catalogo, propios=propios,
+            request, user=user,
+            vivienda=dict(vivienda),
+            catalogo=[dict(r) for r in catalogo],
+            propios=[dict(r) for r in propios],
+            cantidades_actuales=cantidades_actuales,
         ),
     )
 
@@ -504,50 +528,58 @@ async def agregar_artefacto_submit(
     request: Request,
     codigo: str,
     user: CurrentUser = Depends(require_password_changed),
-    origen: str = Form(...),
-    artefacto_codigo: str = Form(...),
-    cantidad: int = Form(...),
-    motivo: str = Form("alta_revisita"),
+    cantidades_json: str = Form(...),
 ):
-    if not (user.puede("inventario", "editar", "editar")
-            or user.puede("viviendas", "admin", "editar")):
+    if not _puede_editar_inventario(user):
         raise HTTPException(403, "Sin permiso")
-    if cantidad <= 0:
-        set_flash(request, "error", "La cantidad debe ser mayor a 0.")
-        return RedirectResponse(f"/app/padron/{codigo}/inventario/agregar", status_code=303)
-    if origen not in ("catalogo", "propio"):
-        set_flash(request, "error", "Origen inválido.")
-        return RedirectResponse(f"/app/padron/{codigo}/inventario/agregar", status_code=303)
 
-    from app.services.inventario_service import agregar_artefacto as svc_agregar
+    from app.services.inventario_service import sincronizar_inventario
+
+    try:
+        cantidades = json.loads(cantidades_json)
+        if not isinstance(cantidades, list):
+            raise ValueError("cantidades_json debe ser una lista")
+    except (json.JSONDecodeError, ValueError) as exc:
+        set_flash(request, "error", f"Datos invalidos: {exc}")
+        return RedirectResponse(f"/app/padron/{codigo}/inventario/agregar", status_code=303)
 
     async with tenant_session(user.tenant_schema) as ts:
-        vivienda = (
+        viv = (
             await ts.execute(
-                text("SELECT id FROM viviendas WHERE codigo_interno = :c"),
+                text(
+                    "SELECT id, anulada_at FROM viviendas WHERE codigo_interno = :c"
+                ),
                 {"c": codigo},
             )
-        ).first()
-        if not vivienda:
+        ).mappings().first()
+        if not viv:
             raise HTTPException(404, "Vivienda no encontrada")
+        if viv["anulada_at"] is not None:
+            set_flash(request, "error", "Vivienda anulada: no se modifica inventario.")
+            return RedirectResponse(f"/app/padron/{codigo}", status_code=303)
 
         try:
-            await svc_agregar(
-                ts, user.tenant_schema,
-                vivienda_id=vivienda.id,
-                artefacto_origen=origen,
-                artefacto_codigo=artefacto_codigo,
-                cantidad=cantidad,
-                user_id=user.user_id,
-                motivo=motivo,
+            resumen = await sincronizar_inventario(
+                ts, user.tenant_schema, viv["id"], cantidades, user.user_id,
             )
             await ts.commit()
         except InventarioError as exc:
             await ts.rollback()
+            logger.warning("sincronizar_inventario fallo para %s: %s", codigo, exc)
             set_flash(request, "error", str(exc))
             return RedirectResponse(f"/app/padron/{codigo}/inventario/agregar", status_code=303)
 
-    set_flash(request, "success", "Artefacto agregado al inventario.")
+    n_altas = len(resumen["altas"])
+    n_bajas = len(resumen["bajas"])
+    n_cambios = len(resumen["cambios_cantidad"])
+    if n_altas + n_bajas + n_cambios == 0:
+        set_flash(request, "info", "No habia cambios para guardar.")
+    else:
+        partes = []
+        if n_altas:   partes.append(f"{n_altas} alta(s)")
+        if n_bajas:   partes.append(f"{n_bajas} baja(s)")
+        if n_cambios: partes.append(f"{n_cambios} cambio(s) de cantidad")
+        set_flash(request, "success", "Inventario actualizado: " + ", ".join(partes) + ".")
     return RedirectResponse(f"/app/padron/{codigo}", status_code=303)
 
 
