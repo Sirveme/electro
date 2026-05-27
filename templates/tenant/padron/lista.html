@@ -51,7 +51,12 @@
         </thead>
         <tbody>
           {% for v in viviendas %}
-          <tr {% if v.anulada_at %}class="row-anulada"{% endif %}>
+          <tr class="vivienda-row{% if v.anulada_at %} row-anulada{% endif %}"
+              data-href="/app/padron/{{ v.codigo_interno }}"
+              _="on click
+                  if event.target.closest('.kebab') is not null then exit end
+                  if event.target.closest('a') is not null then exit end
+                  go to url my @data-href">
             <td>
               <code>{{ v.codigo_interno }}</code>
               {% if v.anulada_at %}
@@ -69,9 +74,16 @@
             </td>
             <td class="muted">{{ v.empadronada_at.strftime('%Y-%m-%d') }}</td>
             <td>
-              {% set items = [
-                {'href': '/app/padron/' ~ v.codigo_interno, 'label': 'Ver ficha'}
-              ] %}
+              {% set items = [{'href': '/app/padron/' ~ v.codigo_interno, 'label': 'Ver ficha'}] %}
+              {% if (ctx.user | puede('viviendas', 'admin', 'editar')) and not v.anulada_at %}
+                {% set _ = items.append({'href': '/app/padron/' ~ v.codigo_interno ~ '/editar', 'label': 'Editar datos'}) %}
+              {% endif %}
+              {% if (ctx.user | puede('viviendas', 'admin', 'anular')) and not v.anulada_at %}
+                {% set _ = items.append({'href': '/app/padron/' ~ v.codigo_interno ~ '#anular', 'label': 'Anular vivienda', 'danger': true}) %}
+              {% endif %}
+              {% if (ctx.user | puede('viviendas', 'admin', 'reactivar')) and v.anulada_at %}
+                {% set _ = items.append({'href': '/app/padron/' ~ v.codigo_interno ~ '#reactivar', 'label': 'Reactivar vivienda'}) %}
+              {% endif %}
               {% include 'components/kebab_menu.html' %}
             </td>
           </tr>

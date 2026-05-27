@@ -113,8 +113,12 @@
     <div class="tab-panel tab-panel-active" data-panel="actual">
       <div class="inv-header">
         <span class="muted">{{ inventario_actual | length }} artefacto(s) vigente(s)</span>
-        {% if ctx.user | puede('inventario', 'editar', 'editar') %}
-          <a href="/app/padron/{{ vivienda.codigo_interno }}/inventario/agregar" class="btn btn--ghost btn--sm">+ Agregar artefacto</a>
+        {% if (ctx.user | puede('viviendas', 'admin', 'editar')
+               or ctx.user | puede('inventario', 'editar', 'editar'))
+              and not vivienda.anulada_at %}
+          <a href="/app/padron/{{ vivienda.codigo_interno }}/inventario/agregar"
+             class="btn btn--ghost btn--sm"
+             hx-boost="false">+ Agregar artefacto</a>
         {% endif %}
       </div>
       {% if inventario_actual | length == 0 %}
@@ -192,4 +196,13 @@
 {% if (ctx.user | puede('viviendas', 'admin', 'reactivar')) and vivienda.anulada_at %}
   {% include 'tenant/padron/_modal_reactivar.html' %}
 {% endif %}
+
+{# Abrir modal automáticamente si llegamos con #anular o #reactivar en la URL #}
+<div hidden
+     _="on load
+         if window.location.hash == '#anular' then
+           remove .hidden from #modal-anular
+         else if window.location.hash == '#reactivar' then
+           remove .hidden from #modal-reactivar
+         end"></div>
 {% endblock %}
