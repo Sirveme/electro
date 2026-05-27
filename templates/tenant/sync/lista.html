@@ -1,0 +1,182 @@
+{% extends 'base.html' %}
+{% block title %}Sincronización{% endblock %}
+{% block content %}
+<section class="page">
+  <header class="page-header">
+    <h1 class="page-title">Cola de sincronización</h1>
+  </header>
+
+  <div class="sync-summary">
+    <div>
+      <p class="sync-total">
+        <strong id="sync-total">0</strong> cambio(s) pendiente(s)
+      </p>
+      <small class="muted" id="sync-last">Última sincronización: nunca</small>
+    </div>
+    <div class="sync-actions">
+      <button class="btn btn--ghost" id="btn-reintentar" type="button" hidden>
+        Reintentar fallidos
+      </button>
+      <button class="btn btn--primary" id="btn-sync-ahora" type="button">
+        Sincronizar ahora
+      </button>
+    </div>
+  </div>
+
+  <div id="sync-items" class="sync-items">
+    <p class="muted">Cargando…</p>
+  </div>
+
+  <p class="muted small" style="margin-top: 20px">
+    Tip: cuando estés en una zona con buena conexión a Internet, pulsa
+    <strong>Sincronizar ahora</strong> para enviar al servidor todos los
+    empadronamientos y cobros que hayas hecho sin conexión. Si el modo
+    está en <em>Auto</em>, también se sincroniza solo al volver online.
+  </p>
+</section>
+
+<script>
+  (function () {
+    'use strict';
+
+    var elTotal = document.getElementById('sync-total');
+    var elLast = document.getElementById('sync-last');
+    var elItems = document.getElementById('sync-items');
+    var btnSync = document.getElementById('btn-sync-ahora');
+    var btnRetry = document.getElementById('btn-reintentar');
+
+    function fmtFecha(iso) {
+      try { return new Date(iso).toLocaleString('es-PE'); }
+      catch (e) { return iso; }
+    }
+
+    function escapeHtml(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function renderItem(it) {
+      var titulo = it.tipo;
+      if (it.tipo === 'empadronar' && it.payload) {
+        titulo = 'Empadronamiento · uuid ' + (it.payload.uuid_cliente || '').slice(0, 8) + '…';
+      }
+      var statusLabel = ({
+        pending: 'Pendiente',
+        failed: 'Fallido',
+        conflict: 'Conflicto',
+      })[it.status] || it.status;
+      return ''
+        + '<div class="sync-item sync-item--' + escapeHtml(it.status) + '">'
+        +   '<div class="sync-item-info">'
+        +     '<strong>' + escapeHtml(titulo) + '</strong>'
+        +     '<small class="muted">creado ' + escapeHtml(fmtFecha(it.created_at)) + '</small>'
+        +     (it.last_error ? '<small class="sync-error">' + escapeHtml(it.last_error) + '</small>' : '')
+        +   '</div>'
+        +   '<span class="badge badge-' + escapeHtml(it.status) + '">' + escapeHtml(statusLabel) + '</span>'
+        + '</div>';
+    }
+
+    async function renderQueue() {
+      if (!window.ElectroDB) {
+        elItems.innerHTML = '<p class="muted">IndexedDB no disponible en este navegador.</p>';
+        return;
+      }
+      await window.ElectroDB.open();
+      var items = await window.ElectroDB.getAll('sync_queue');
+      var meta = await window.ElectroDB.get('meta', 'last_sync');
+
+      elTotal.textContent = items.length;
+      elLast.textContent = meta && meta.value
+        ? 'Última sincronización: ' + fmtFecha(meta.value)
+        : 'Última sincronización: nunca';
+
+      var anyFailed = items.some(function (i) { return i.status === 'failed'; });
+      btnRetry.hidden = !anyFailed;
+
+      if (items.length === 0) {
+        elItems.innerHTML = '<p class="muted">No hay cambios pendientes. Todo sincronizado.</p>';
+        return;
+      }
+      // Orden: pending → failed → conflict, luego por fecha
+      items.sort(function (a, b) {
+        var ord = { pending: 0, failed: 1, conflict: 2 };
+        var oa = ord[a.status] != null ? ord[a.status] : 9;
+        var ob = ord[b.status] != null ? ord[b.status] : 9;
+        if (oa !== ob) return oa - ob;
+        return String(a.created_at).localeCompare(String(b.created_at));
+      });
+      elItems.innerHTML = items.map(renderItem).join('');
+    }
+
+    btnSync.addEventListener('click', async function () {
+      btnSync.disabled = true;
+      btnSync.textContent = 'Sincronizando…';
+      try {
+        var result = await window.electroSync.sincronizar();
+        await window.appModal.alert(
+          'Sincronización completa',
+          'Procesados: ' + result.total + '\n' +
+          'OK: ' + result.ok + '\n' +
+          'Conflictos: ' + result.conflict + '\n' +
+          'Fallidos: ' + result.failed
+        );
+        await renderQueue();
+      } catch (e) {
+        await window.appModal.alert('Error de sincronización', String(e.message || e));
+      } finally {
+        btnSync.disabled = false;
+        btnSync.textContent = 'Sincronizar ahora';
+      }
+    });
+
+    btnRetry.addEventListener('click', async function () {
+      btnRetry.disabled = true;
+      try {
+        await window.electroSync.reintentarFallidos();
+        await renderQueue();
+      } finally {
+        btnRetry.disabled = false;
+      }
+    });
+
+    document.addEventListener('DOMContentLoaded', renderQueue);
+    if (document.readyState !== 'loading') renderQueue();
+  })();
+</script>
+
+<style>
+  .sync-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 16px;
+  }
+  .sync-summary .sync-total { margin: 0; font-size: 1.1rem; }
+  .sync-summary .sync-actions { display: flex; gap: 8px; }
+  .sync-items { display: flex; flex-direction: column; gap: 8px; }
+  .sync-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 14px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  .sync-item-info { display: flex; flex-direction: column; gap: 2px; }
+  .sync-item-info .sync-error { color: var(--danger); margin-top: 4px; }
+  .sync-item--pending  { border-left: 3px solid var(--primary); }
+  .sync-item--failed   { border-left: 3px solid var(--warning); }
+  .sync-item--conflict { border-left: 3px solid var(--danger); }
+  .badge { padding: 2px 10px; border-radius: 10px; font-size: 0.78rem; font-weight: 600; }
+  .badge-pending  { background: var(--primary-soft);  color: var(--primary); }
+  .badge-failed   { background: var(--warning-soft);  color: var(--warning); }
+  .badge-conflict { background: var(--danger-soft);   color: var(--danger);  }
+</style>
+{% endblock %}

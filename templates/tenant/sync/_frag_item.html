@@ -1,0 +1,11 @@
+{# Fragmento de una fila de la cola. Por ahora el render es enteramente cliente
+   (JS en lista.html). Este partial existe como punto de extensión para futuros
+   refrescos HTMX desde el servidor (p.ej. estado del lado servidor). #}
+<div class="sync-item sync-item--{{ item.status }}">
+  <div class="sync-item-info">
+    <strong>{{ item.titulo }}</strong>
+    <small class="muted">{{ item.created_at }}</small>
+    {% if item.last_error %}<small class="sync-error">{{ item.last_error }}</small>{% endif %}
+  </div>
+  <span class="badge badge-{{ item.status }}">{{ item.status }}</span>
+</div>
