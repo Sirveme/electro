@@ -53,11 +53,7 @@
           {% for v in viviendas %}
           <tr class="vivienda-row{% if v.anulada_at %} row-anulada{% endif %}"
               data-href="/app/padron/{{ v.codigo_interno }}"
-              _="on click
-                  if event.target.closest('.kebab') exit end
-                  if event.target.closest('a') exit end
-                  if event.target.closest('button') exit end
-                  go to url @data-href">
+              onclick="if (!event.target.closest('.kebab,a,button')) location.href = this.dataset.href">
             <td>
               <code>{{ v.codigo_interno }}</code>
               {% if v.anulada_at %}
