@@ -57,110 +57,166 @@ async def bootstrap(
     request: Request,
     user: CurrentUser = Depends(require_password_changed),
 ):
-    """Retorna toda la data de referencia para operar offline."""
+    """Retorna data de referencia para operar offline:
+    comunidades, referentes, subsidios vigentes, catalogo de artefactos
+    habilitados y config del municipio.
+
+    Cada bloque corre en su propio `tenant_session` para que un error en
+    uno (SQL malformado, columna inexistente, etc.) no aborte la transaccion
+    de los demas — la causa raiz del bug original. El cliente recibe
+    `errors: [{section, error}]` con lo que fallo, si algo fallo.
+    """
     if not user.puede("padron", "viviendas", "ver"):
         raise HTTPException(403, "Sin permiso")
 
-    async with tenant_session(user.tenant_schema) as ts:
-        comunidades = (
-            await ts.execute(
-                text(
-                    "SELECT id, nombre, descripcion FROM comunidades "
-                    "WHERE activa = TRUE ORDER BY nombre"
-                )
-            )
-        ).mappings().all()
-
-        referentes = (
-            await ts.execute(
-                text(
-                    "SELECT id, nombre_completo, cargo, dni, telefono "
-                    "FROM referentes WHERE activo = TRUE ORDER BY nombre_completo"
-                )
-            )
-        ).mappings().all()
-
-        subsidios = (
-            await ts.execute(
-                text(
-                    "SELECT s.id, s.nombre, s.porcentaje, s.base_legal, "
-                    "       s.vigente_desde, s.vigente_hasta, "
-                    "       ARRAY(SELECT comunidad_id FROM subsidio_comunidades sc "
-                    "             WHERE sc.subsidio_id = s.id) AS comunidad_ids "
-                    "FROM subsidios s "
-                    "WHERE s.vigente_hasta IS NULL OR s.vigente_hasta >= CURRENT_DATE "
-                    "ORDER BY s.vigente_desde DESC"
-                )
-            )
-        ).mappings().all()
-
-        catalogo = (
-            await ts.execute(
-                text(
-                    "SELECT ac.id::text AS id, 'catalogo' AS origen, ac.codigo, "
-                    "       ac.nombre, ac.categoria, ac.icono, "
-                    "       COALESCE(cfg.tarifa_mensual, ac.tarifa_sugerida) AS tarifa "
-                    "FROM public.artefacto_catalogo ac "
-                    "LEFT JOIN artefacto_config cfg ON cfg.catalogo_id = ac.id "
-                    "WHERE (cfg.habilitado IS NULL AND ac.activo_default = TRUE) "
-                    "   OR cfg.habilitado = TRUE "
-                    "ORDER BY ac.categoria, ac.orden, ac.nombre"
-                )
-            )
-        ).mappings().all()
-
-        propios = (
-            await ts.execute(
-                text(
-                    "SELECT codigo AS id, 'propio' AS origen, codigo, nombre, "
-                    "       categoria, NULL AS icono, tarifa_mensual AS tarifa "
-                    "FROM artefacto_propio WHERE habilitado = TRUE "
-                    "ORDER BY categoria, orden, nombre"
-                )
-            )
-        ).mappings().all()
-
-        cfg_rows = (
-            await ts.execute(
-                text(
-                    "SELECT clave, valor FROM config_municipio "
-                    "WHERE clave IN ('cargo_fijo_mensual', 'adicional_por_morador')"
-                )
-            )
-        ).all()
-        config = {r.clave: r.valor for r in cfg_rows}
-
-    def _ser_fecha(v):
-        return v.isoformat() if v else None
-
-    payload = {
-        "comunidades": [dict(c) for c in comunidades],
-        "referentes": [dict(r) for r in referentes],
-        "subsidios": [
-            {
-                **dict(s),
-                "vigente_desde": _ser_fecha(s["vigente_desde"]),
-                "vigente_hasta": _ser_fecha(s["vigente_hasta"]),
-                "porcentaje": float(s["porcentaje"]) if s["porcentaje"] is not None else None,
-            }
-            for s in subsidios
-        ],
-        "catalogo": [
-            {**dict(a), "tarifa": float(a["tarifa"]) if a["tarifa"] is not None else 0.0}
-            for a in catalogo
-        ] + [
-            {**dict(a), "tarifa": float(a["tarifa"]) if a["tarifa"] is not None else 0.0}
-            for a in propios
-        ],
-        "config": config,
+    result: dict = {
+        "comunidades": [],
+        "referentes": [],
+        "subsidios": [],
+        "catalogo": [],
+        "config": {},
         "user": {
             "id": user.user_id,
             "nombre": user.nombre,
             "tenant_schema": user.tenant_schema,
         },
         "sync_at": datetime.now().isoformat(),
+        "errors": [],
     }
-    return JSONResponse(payload)
+
+    # === 1. Comunidades ===
+    try:
+        async with tenant_session(user.tenant_schema) as ts:
+            rows = (await ts.execute(text(
+                "SELECT id, nombre, referente_principal_id, activa "
+                "FROM comunidades WHERE activa = TRUE ORDER BY nombre"
+            ))).mappings().all()
+            result["comunidades"] = [dict(r) for r in rows]
+    except Exception as exc:
+        logger.exception("Bootstrap: comunidades")
+        result["errors"].append({"section": "comunidades", "error": str(exc)})
+
+    # === 2. Referentes ===
+    try:
+        async with tenant_session(user.tenant_schema) as ts:
+            rows = (await ts.execute(text(
+                "SELECT id, nombre_completo, cargo, dni, telefono, foto_url "
+                "FROM referentes WHERE activo = TRUE ORDER BY nombre_completo"
+            ))).mappings().all()
+            result["referentes"] = [dict(r) for r in rows]
+    except Exception as exc:
+        logger.exception("Bootstrap: referentes")
+        result["errors"].append({"section": "referentes", "error": str(exc)})
+
+    # === 3. Subsidios vigentes (+ comunidades cubiertas, query separada) ===
+    try:
+        async with tenant_session(user.tenant_schema) as ts:
+            sub_rows = (await ts.execute(text(
+                "SELECT id, nombre, porcentaje, base_legal, "
+                "       vigente_desde, vigente_hasta, observaciones "
+                "FROM subsidios "
+                "WHERE vigente_hasta IS NULL OR vigente_hasta >= CURRENT_DATE "
+                "ORDER BY vigente_desde DESC"
+            ))).mappings().all()
+
+            subsidios: list[dict] = []
+            for s in sub_rows:
+                d = dict(s)
+                d["vigente_desde"] = d["vigente_desde"].isoformat() if d.get("vigente_desde") else None
+                d["vigente_hasta"] = d["vigente_hasta"].isoformat() if d.get("vigente_hasta") else None
+                d["porcentaje"] = float(d["porcentaje"]) if d.get("porcentaje") is not None else None
+
+                com_rows = (await ts.execute(
+                    text("SELECT comunidad_id FROM subsidio_comunidades WHERE subsidio_id = :sid"),
+                    {"sid": d["id"]},
+                )).all()
+                d["comunidad_ids"] = [r[0] for r in com_rows]
+                subsidios.append(d)
+            result["subsidios"] = subsidios
+    except Exception as exc:
+        logger.exception("Bootstrap: subsidios")
+        result["errors"].append({"section": "subsidios", "error": str(exc)})
+
+    # === 4. Catalogo de artefactos (publico + propios) ===
+    # Dos SELECTs porque las columnas no coinciden 1:1 con artefacto_propio.
+    # Nota: la columna real del catalogo publico es `tarifa_sugerida`
+    # (verificado en empadronamiento_service y wizard paso4), no `tarifa_default`.
+    try:
+        async with tenant_session(user.tenant_schema) as ts:
+            cat_publico = (await ts.execute(text(
+                "SELECT ac.id AS catalogo_id, 'catalogo' AS origen, "
+                "       ac.codigo, ac.nombre, ac.categoria, ac.icono, "
+                "       COALESCE(cfg.tarifa_mensual, ac.tarifa_sugerida) AS tarifa, "
+                "       TRUE AS habilitado "
+                "FROM public.artefacto_catalogo ac "
+                "LEFT JOIN artefacto_config cfg ON cfg.catalogo_id = ac.id "
+                "WHERE COALESCE(cfg.habilitado, ac.activo_default) = TRUE "
+                "ORDER BY ac.categoria, ac.orden, ac.nombre"
+            ))).mappings().all()
+
+            cat_propios = (await ts.execute(text(
+                "SELECT id, 'propio' AS origen, codigo, nombre, categoria, "
+                "       NULL AS icono, tarifa_mensual AS tarifa, habilitado "
+                "FROM artefacto_propio WHERE habilitado = TRUE "
+                "ORDER BY categoria, orden, nombre"
+            ))).mappings().all()
+
+            catalogo: list[dict] = []
+            for r in cat_publico:
+                d = dict(r)
+                d["tarifa"] = float(d["tarifa"]) if d.get("tarifa") is not None else 0.0
+                d["key"] = f"catalogo:{d['codigo']}"
+                catalogo.append(d)
+            for r in cat_propios:
+                d = dict(r)
+                d["tarifa"] = float(d["tarifa"]) if d.get("tarifa") is not None else 0.0
+                d["key"] = f"propio:{d['codigo']}"
+                catalogo.append(d)
+            result["catalogo"] = catalogo
+    except Exception as exc:
+        logger.exception("Bootstrap: catalogo")
+        result["errors"].append({"section": "catalogo", "error": str(exc)})
+
+    # === 5. Configuracion del municipio (key-value) ===
+    try:
+        async with tenant_session(user.tenant_schema) as ts:
+            rows = (await ts.execute(text(
+                "SELECT clave, valor, tipo FROM config_municipio"
+            ))).mappings().all()
+
+            config: dict = {}
+            for r in rows:
+                clave = r["clave"]
+                valor = r["valor"]
+                tipo = (r.get("tipo") or "string").lower()
+                if tipo in ("decimal", "numeric", "float"):
+                    try:
+                        config[clave] = float(valor) if valor is not None else 0.0
+                    except (TypeError, ValueError):
+                        config[clave] = 0.0
+                elif tipo in ("int", "integer"):
+                    try:
+                        config[clave] = int(valor) if valor is not None else 0
+                    except (TypeError, ValueError):
+                        config[clave] = 0
+                elif tipo in ("bool", "boolean"):
+                    config[clave] = str(valor).lower() in ("true", "1", "si", "yes")
+                else:
+                    config[clave] = valor
+            result["config"] = config
+    except Exception as exc:
+        logger.exception("Bootstrap: config")
+        result["errors"].append({"section": "config", "error": str(exc)})
+
+    total = (
+        len(result["comunidades"]) + len(result["referentes"])
+        + len(result["subsidios"]) + len(result["catalogo"])
+    )
+    logger.info(
+        "Bootstrap user_id=%s tenant=%s: %s items, %s errores",
+        user.user_id, user.tenant_schema, total, len(result["errors"]),
+    )
+    return JSONResponse(result)
 
 
 @router.post("/empadronar-offline", dependencies=[Depends(verify_csrf_header)])
