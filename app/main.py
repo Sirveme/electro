@@ -32,6 +32,8 @@ from app.routes.tenant import pago_pdf as tenant_pago_pdf
 from app.routes.tenant import reportes as tenant_reportes
 from app.routes.tenant import vivienda_admin as tenant_vivienda_admin
 from app.routes.tenant import morador_admin as tenant_morador_admin
+from app.routes.tenant import api_offline as tenant_api_offline
+from app.routes.tenant import sync as tenant_sync
 
 logging.basicConfig(
     level=logging.INFO if settings.ENVIRONMENT == "production" else logging.DEBUG,
@@ -105,3 +107,5 @@ app.include_router(tenant_pago_pdf.router)
 app.include_router(tenant_reportes.router)
 app.include_router(tenant_vivienda_admin.router)
 app.include_router(tenant_morador_admin.router)
+app.include_router(tenant_api_offline.router)
+app.include_router(tenant_sync.router)
