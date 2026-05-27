@@ -69,8 +69,9 @@ self.addEventListener('fetch', (event) => {
   // Solo manejamos GET
   if (req.method !== 'GET') return;
 
-  // No cachear /api, /healthz, /static/sw.js, /sw.js
+  // No cachear endpoints API ni health, ni el propio SW
   if (url.pathname.startsWith('/api/') ||
+      url.pathname.startsWith('/app/api/') ||
       url.pathname === '/healthz' ||
       url.pathname === '/sw.js' ||
       url.pathname === '/static/sw.js') {
