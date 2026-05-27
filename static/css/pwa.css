@@ -1,0 +1,211 @@
+/* electro - PWA: boton instalar, indicador conexion */
+
+/* Boton Instalar en el topbar */
+.btn-install-pwa {
+  background: var(--primary);
+  color: var(--primary-text-on);
+  border: none;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background var(--transition);
+}
+
+.btn-install-pwa:hover {
+  background: var(--primary-hover);
+}
+
+.btn-install-pwa::before {
+  content: "\2193";
+  font-weight: bold;
+}
+
+/* Indicador de conexion en topbar */
+.connection-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--transition);
+  border: none;
+  background: transparent;
+  font-family: inherit;
+}
+
+.connection-indicator::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.connection-indicator.is-online::before {
+  background: var(--success);
+  box-shadow: 0 0 6px rgba(22, 199, 132, 0.6);
+}
+
+.connection-indicator.is-offline::before {
+  background: var(--accent);
+}
+
+.connection-indicator.mode-offline {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.connection-indicator.mode-online {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.connection-indicator.mode-auto {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.connection-indicator:hover {
+  filter: brightness(1.15);
+}
+
+/* === Modal overlay (estilo propio del modo PWA, independiente del modal app) === */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal, 900);
+  background: var(--bg-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: pwaModalIn 150ms ease-out;
+}
+
+@keyframes pwaModalIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-overlay .modal-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 480px;
+  padding: 22px;
+  color: var(--text);
+}
+
+.modal-overlay .modal-card h2 {
+  margin: 0 0 10px;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+.modal-overlay .modal-card p {
+  margin: 0 0 12px;
+  line-height: 1.45;
+}
+
+.modal-overlay .modal-card .muted {
+  color: var(--text-muted);
+}
+
+.modal-overlay .modal-card .small {
+  font-size: 0.85rem;
+}
+
+.modal-overlay .modal-card ol {
+  margin: 0 0 12px 1.2em;
+  padding: 0;
+  line-height: 1.6;
+}
+
+.modal-overlay .modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* Modal de seleccion de modo */
+.modal-mode-conexion .mode-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.mode-option {
+  background: var(--bg-base);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: all var(--transition);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: inherit;
+}
+
+.mode-option:hover {
+  border-color: var(--primary);
+}
+
+.mode-option.selected {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.mode-option strong {
+  font-size: 1rem;
+  color: var(--text-strong);
+}
+
+.mode-option small {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+/* Indicador de cambios sin sincronizar */
+.sync-pending-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--accent);
+  color: var(--accent-text-on);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-left: 8px;
+}
+
+.sync-pending-badge.hidden {
+  display: none;
+}
+
+/* Advertencia 90 dias sin sincronizar */
+.sync-warning-banner {
+  background: var(--danger-soft);
+  border-bottom: 1px solid var(--danger);
+  color: var(--danger);
+  padding: 8px 16px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
