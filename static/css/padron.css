@@ -311,3 +311,22 @@
   padding: 4px 10px;
   font-size: 0.85rem;
 }
+
+/* === fix-09: filas clickeables + danger en kebab === */
+
+.vivienda-row {
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.vivienda-row:hover {
+  background: rgba(27, 79, 245, 0.05);
+}
+
+.kebab-item--danger {
+  color: var(--danger);
+}
+
+.kebab-item--danger:hover {
+  background: var(--danger-soft);
+}
