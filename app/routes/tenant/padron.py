@@ -454,7 +454,8 @@ async def agregar_artefacto_form(
     codigo: str,
     user: CurrentUser = Depends(require_password_changed),
 ):
-    if not user.puede("inventario", "editar", "editar"):
+    if not (user.puede("inventario", "editar", "editar")
+            or user.puede("viviendas", "admin", "editar")):
         raise HTTPException(403, "Sin permiso")
     async with tenant_session(user.tenant_schema) as ts:
         vivienda = (
@@ -508,7 +509,8 @@ async def agregar_artefacto_submit(
     cantidad: int = Form(...),
     motivo: str = Form("alta_revisita"),
 ):
-    if not user.puede("inventario", "editar", "editar"):
+    if not (user.puede("inventario", "editar", "editar")
+            or user.puede("viviendas", "admin", "editar")):
         raise HTTPException(403, "Sin permiso")
     if cantidad <= 0:
         set_flash(request, "error", "La cantidad debe ser mayor a 0.")
