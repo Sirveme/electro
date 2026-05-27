@@ -34,7 +34,12 @@ async def _resolver_nombre_artefacto(
                 {"c": codigo},
             )
         ).first()
-        return row.nombre if row else None
+        if not row:
+            logger.warning(
+                "Catálogo público no tiene código='%s' (schema_name=%s)", codigo, schema_name
+            )
+            return None
+        return row.nombre
     if origen == "propio":
         row = (
             await session.execute(
@@ -42,7 +47,12 @@ async def _resolver_nombre_artefacto(
                 {"c": codigo},
             )
         ).first()
-        return row.nombre if row else None
+        if not row:
+            logger.warning(
+                "artefacto_propio no tiene código='%s' (schema=%s)", codigo, schema_name
+            )
+            return None
+        return row.nombre
     raise InventarioError(f"artefacto_origen inválido: {origen}")
 
 
@@ -212,3 +222,112 @@ async def cambiar_cantidad(
         row.artefacto_origen, row.artefacto_codigo,
         nueva_cantidad, user_id, motivo=motivo,
     )
+
+
+async def sincronizar_inventario(
+    session: AsyncSession,
+    schema_name: str,
+    vivienda_id: int,
+    cantidades_objetivo: list[dict],
+    user_id: int,
+    motivo: str = "inventario_modificacion",
+) -> dict:
+    """
+    Sincroniza el inventario vigente de una vivienda con un set de cantidades objetivo.
+
+    `cantidades_objetivo` es una lista de dicts con shape
+        {"origen": "catalogo"|"propio", "codigo": str, "cantidad": int}
+
+    Reglas (effective dating):
+      - cantidad_actual == cantidad_objetivo  → no-op
+      - existe & cantidad_objetivo == 0       → cerrar fila vigente (baja)
+      - existe & cantidad_objetivo != actual  → cerrar fila vigente + insertar nueva
+      - no existe & cantidad_objetivo > 0     → insertar nueva fila
+
+    Registra UN solo evento `inventario_modificacion` con un resumen consolidado
+    de los cambios en metadata.
+
+    El caller NO debe hacer commit: esta función no commitea; lo deja al caller
+    para que pueda hacer commit atómico junto con otras operaciones.
+
+    Retorna un dict con resumen: {altas, bajas, sin_cambio, cambios_cantidad}.
+    """
+    actuales = await inventario_actual_de_vivienda(session, vivienda_id)
+    # Indexar por (origen, codigo) para mirar O(1)
+    actuales_idx: dict[tuple[str, str], dict] = {
+        (r["artefacto_origen"], r["artefacto_codigo"]): r for r in actuales
+    }
+
+    altas: list[dict] = []
+    bajas: list[dict] = []
+    cambios: list[dict] = []
+    sin_cambio: list[dict] = []
+
+    objetivos_idx: dict[tuple[str, str], int] = {}
+    for it in cantidades_objetivo:
+        origen = it.get("origen")
+        codigo = it.get("codigo")
+        cantidad = int(it.get("cantidad") or 0)
+        if origen not in ("catalogo", "propio"):
+            raise InventarioError(f"origen invalido: {origen!r}")
+        if not codigo:
+            raise InventarioError("Falta el codigo de artefacto")
+        if cantidad < 0:
+            raise InventarioError(f"Cantidad negativa para {origen}/{codigo}")
+        objetivos_idx[(origen, codigo)] = cantidad
+
+    # 1) Artefactos que estan en objetivos: comparar con actuales.
+    for (origen, codigo), cantidad_obj in objetivos_idx.items():
+        actual = actuales_idx.get((origen, codigo))
+        if actual is None:
+            if cantidad_obj > 0:
+                await agregar_artefacto(
+                    session, schema_name, vivienda_id,
+                    origen, codigo, cantidad_obj, user_id, motivo=motivo,
+                )
+                altas.append({"origen": origen, "codigo": codigo, "cantidad": cantidad_obj})
+            # cantidad_obj == 0 y no existia: no-op (ni siquiera registrar)
+        else:
+            cantidad_actual = int(actual["cantidad"])
+            inv_id = int(actual["id"])
+            if cantidad_obj == cantidad_actual:
+                sin_cambio.append({"origen": origen, "codigo": codigo, "cantidad": cantidad_actual})
+            elif cantidad_obj == 0:
+                await dar_de_baja_artefacto(session, inv_id, user_id, motivo=motivo)
+                bajas.append({"origen": origen, "codigo": codigo, "cantidad_previa": cantidad_actual})
+            else:
+                await cambiar_cantidad(
+                    session, schema_name, inv_id, cantidad_obj, user_id, motivo=motivo,
+                )
+                cambios.append({
+                    "origen": origen, "codigo": codigo,
+                    "cantidad_previa": cantidad_actual, "cantidad_nueva": cantidad_obj,
+                })
+
+    # 2) Artefactos vigentes que NO aparecen en objetivos: baja implicita? NO.
+    #    Solo se da de baja si el form lo manda con cantidad=0 (explicito).
+    #    Esto evita que un form parcialmente cargado borre todo lo demas.
+
+    resumen = {
+        "altas": altas,
+        "bajas": bajas,
+        "cambios_cantidad": cambios,
+        "sin_cambio": sin_cambio,
+    }
+
+    # Si ningun cambio real, no registrar evento.
+    if altas or bajas or cambios:
+        await _registrar_evento(
+            session, vivienda_id, "inventario_modificacion", user_id,
+            descripcion=(
+                f"Inventario: {len(altas)} alta(s), {len(bajas)} baja(s), "
+                f"{len(cambios)} cambio(s) de cantidad"
+            ),
+            metadata=resumen,
+        )
+
+    logger.info(
+        "Inventario vivienda %d sincronizado por user %d: %d altas, %d bajas, %d cambios",
+        vivienda_id, user_id, len(altas), len(bajas), len(cambios),
+    )
+    return resumen
