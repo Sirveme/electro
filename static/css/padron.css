@@ -330,3 +330,25 @@
 .kebab-item--danger:hover {
   background: var(--danger-soft);
 }
+
+/* === fix-10: kebab como overlay flotante (no expande la fila) === */
+/* La causa raz: components.css define .table-wrap { overflow: auto }, lo que
+   clipa el dropdown absoluto y dispara scroll dentro del <td>. */
+
+.table-wrap {
+  overflow: visible !important;
+}
+
+.table {
+  overflow: visible;
+}
+
+.table td {
+  overflow: visible;
+  position: relative;
+}
+
+/* Reforzar z-index para que el menu quede sobre celdas siguientes */
+.kebab-menu {
+  z-index: 1000;
+}
