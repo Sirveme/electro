@@ -90,7 +90,23 @@
   <script src="/static/js/connection_mode.js?v=1" defer></script>
   <script src="/static/js/pwa_install.js?v=1" defer></script>
 
+  <!-- PWA offline (03b): empadronar/sync/logout-guard -->
+  <script src="/static/js/empadronar_offline.js?v=1" defer></script>
+  <script src="/static/js/sync_engine.js?v=1" defer></script>
+  <script src="/static/js/logout_sync_guard.js?v=1" defer></script>
+
   <script>
+    // Detectar errores criticos de hyperscript que rompen scripts subsiguientes.
+    // Si _hyperscript falla al parsear un atributo `_=`, los siguientes con
+    // `_=` no se procesan; el sintoma es que callbacks JS que el flujo esperaba
+    // no se enganchan al DOM. Loggeamos visiblemente para diagnostico.
+    window.addEventListener('error', function (e) {
+      var msg = (e && e.message) || '';
+      if (msg.toLowerCase().indexOf('hyperscript') !== -1) {
+        console.error('[CRITICAL] Hyperscript error detectado:', msg, e.filename, e.lineno);
+      }
+    });
+
     // Registrar el Service Worker
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
