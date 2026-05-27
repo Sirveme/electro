@@ -152,8 +152,12 @@ async def recibo_pdf(request: Request, cuota_id: int):
     filename = f"recibo_{cuota['numero_recibo']}.pdf"
     return Response(
         content=pdf_bytes,
-        media_type="application/pdf",
-        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+        media_type="application/octet-stream",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"; filename*=UTF-8\'\'{filename}',
+            "X-Content-Type-Options": "nosniff",
+            "Cache-Control": "no-store",
+        },
     )
 
 
