@@ -8,6 +8,14 @@
 
   <link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg">
 
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1B4FF5">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="electro">
+  <link rel="apple-touch-icon" href="/static/img/icon-192.png">
+
   <!-- Preload de estáticos críticos -->
 <link rel="preload" href="/static/css/tokens.css?v=2" as="style">
 <link rel="preload" href="/static/css/base.css?v=2" as="style">
@@ -23,6 +31,7 @@
 <link rel="stylesheet" href="/static/css/tarifas.css?v=1">
 <link rel="stylesheet" href="/static/css/cobranza.css?v=1">
 <link rel="stylesheet" href="/static/css/reportes.css?v=1">
+<link rel="stylesheet" href="/static/css/pwa.css?v=1">
   <!-- Tema: aplicar ANTES de pintar para evitar flash -->
   <script src="/static/js/theme.js?v=2"></script>
 
@@ -47,6 +56,20 @@
       electro
     </span>
     <div class="spacer"></div>
+    <button class="btn-install-pwa" id="btn-install-pwa"
+            type="button"
+            onclick="window.electroInstallPWA()">
+      Instalar app
+    </button>
+    <button class="connection-indicator" id="connection-indicator"
+            type="button"
+            onclick="window.ElectroConnectionMode.showModal()"
+            title="Cambiar modo de conexion">
+      <span class="connection-label">Sin conexion</span>
+      <span class="sync-pending-badge hidden" id="sync-pending-badge">
+        <span id="sync-count">0</span> cambios
+      </span>
+    </button>
     <span class="conn-dot" title="Conexión"></span>
     <span class="conn-label"></span>
     <span class="ctx">{{ ctx.user.nombre }}</span>
@@ -61,5 +84,54 @@
   </main>
 
   {% block extra_js %}{% endblock %}
+
+  <!-- PWA: IndexedDB, modo conexion, instalar -->
+  <script src="/static/js/indexeddb.js?v=1" defer></script>
+  <script src="/static/js/connection_mode.js?v=1" defer></script>
+  <script src="/static/js/pwa_install.js?v=1" defer></script>
+
+  <script>
+    // Registrar el Service Worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js', { scope: '/' })
+          .then((reg) => console.log('[SW] Registered, scope:', reg.scope))
+          .catch((err) => console.error('[SW] Registration failed:', err));
+      });
+    }
+
+    // Actualizar badge de cambios pendientes cada 30s
+    setInterval(async () => {
+      if (window.ElectroDB) {
+        try {
+          const count = await window.ElectroDB.syncPendingCount();
+          const badge = document.getElementById('sync-pending-badge');
+          const countEl = document.getElementById('sync-count');
+          if (badge && countEl) {
+            countEl.textContent = count;
+            badge.classList.toggle('hidden', count === 0);
+          }
+        } catch (e) {
+          // IndexedDB todavia no abierta o error transitorio
+        }
+      }
+    }, 30000);
+
+    // Advertencia 90 dias sin sincronizar
+    window.addEventListener('load', async () => {
+      if (!window.ElectroDB) return;
+      try {
+        const days = await window.ElectroDB.daysSinceLastSync();
+        if (days !== null && days >= 90) {
+          const banner = document.createElement('div');
+          banner.className = 'sync-warning-banner';
+          banner.textContent = `Han pasado ${days} dias sin sincronizar. Por favor sincroniza cuando puedas para evitar perder datos.`;
+          document.body.insertBefore(banner, document.body.firstChild);
+        }
+      } catch (e) {
+        // No bloquear el render por esto
+      }
+    });
+  </script>
 </body>
 </html>
