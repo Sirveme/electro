@@ -50,12 +50,12 @@
                         exit
                       end
                     end
-                    set confirmed to appModal.confirm(
+                    call appModal.confirm(
                       'Confirmar anulación',
                       'Vas a anular la vivienda {{ vivienda.codigo_interno }}. ¿Continuar?',
                       {danger:true, okText:'Sí, anular', cancelText:'No'}
                     )
-                    if confirmed then submit #form-anular-vivienda end">
+                    if it then submit the closest <form/> end">
           Anular vivienda
         </button>
       </div>

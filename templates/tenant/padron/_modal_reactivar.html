@@ -34,12 +34,12 @@
                         'El motivo debe tener al menos 10 caracteres.')
                       exit
                     end
-                    set confirmed to appModal.confirm(
+                    call appModal.confirm(
                       'Confirmar reactivación',
                       '¿Reactivar la vivienda {{ vivienda.codigo_interno }}?',
                       {okText:'Sí, reactivar', cancelText:'No'}
                     )
-                    if confirmed then submit #form-reactivar-vivienda end">
+                    if it then submit the closest <form/> end">
           Reactivar vivienda
         </button>
       </div>

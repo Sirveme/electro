@@ -217,12 +217,36 @@
     var form = document.getElementById('form-final');
     if (!form) return;
 
+    // Si IndexedDB esta vacia y hay red, dispara bootstrap antes del submit.
+    // Util si el usuario entro al wizard sin haber sincronizado nunca.
+    document.addEventListener('DOMContentLoaded', async function () {
+      try {
+        if (!window.ElectroDB) return;
+        var comunidades = await window.ElectroDB.getAll('comunidades');
+        if (comunidades.length === 0 && navigator.onLine && window.electroBootstrap) {
+          console.log('[WIZARD] IndexedDB vacia, forzando bootstrap...');
+          await window.electroBootstrap();
+        }
+      } catch (e) {
+        console.warn('[WIZARD] No se pudo asegurar bootstrap:', e);
+      }
+    });
+
     form.addEventListener('submit', async function (e) {
-      if (!isOfflineSubmit()) return; // online normal
-      if (!window.electroEncolarEmpadronamiento) {
-        console.warn('electroEncolarEmpadronamiento no disponible; submit normal');
+      var mode = (window.ElectroConnectionMode && window.ElectroConnectionMode.get)
+        ? window.ElectroConnectionMode.get() : 'auto';
+      var offline = isOfflineSubmit();
+      console.log('[WIZARD] Submit detectado, mode=', mode, 'offline=', offline);
+
+      if (!offline) {
+        console.log('[WIZARD] Submit online normal');
         return;
       }
+      if (!window.electroEncolarEmpadronamiento) {
+        console.warn('[WIZARD] electroEncolarEmpadronamiento no disponible; submit normal');
+        return;
+      }
+      console.log('[WIZARD] Interceptando submit, guardando offline...');
 
       e.preventDefault();
       var state = leerWizardState();
