@@ -139,23 +139,36 @@
   }
   window.electroEncolarEmpadronamiento = encolarEmpadronamiento;
 
-  // Bootstrap automatico cuando hay conexion (modo no-offline).
-  // Solo refresca si pasaron mas de 30 min desde el ultimo.
-  document.addEventListener('DOMContentLoaded', async () => {
-    await ready();
-    const mode = (window.ElectroConnectionMode &&
-                  window.ElectroConnectionMode.get &&
-                  window.ElectroConnectionMode.get()) || 'offline';
-    if (mode === 'offline' || !navigator.onLine) return;
-
+  // Bootstrap auto-init — INDEPENDIENTE del DOM.
+  // Razon: si hyperscript falla al parsear, DOMContentLoaded puede haberse
+  // disparado antes de que este script enganche y nunca se hidrata IndexedDB.
+  // Tambien: corremos el bootstrap SIEMPRE que haya red, sin importar el modo
+  // del usuario — "Forzar offline" intercepta el SUBMIT, no debe impedir que
+  // se descarguen comunidades/referentes/catalogo para usarlos despues.
+  (async function autoInit() {
     try {
-      const last = await window.ElectroDB.get('meta', 'last_bootstrap');
-      if (last && last.value) {
-        const ageMs = Date.now() - new Date(last.value).getTime();
-        if (ageMs < 30 * 60 * 1000) return; // fresh enough
+      await ready();
+      if (!navigator.onLine) {
+        console.log('[OFFLINE] Sin red, skip bootstrap');
+        return;
       }
-    } catch (e) { /* ignorar */ }
+      // Si ya hubo bootstrap reciente (<30 min), no repetir.
+      try {
+        const last = await window.ElectroDB.get('meta', 'last_bootstrap');
+        if (last && last.value) {
+          const ageMs = Date.now() - new Date(last.value).getTime();
+          if (ageMs < 30 * 60 * 1000) {
+            console.log('[OFFLINE] Bootstrap reciente, skip');
+            return;
+          }
+        }
+      } catch (e) { /* primera vez: no hay meta */ }
 
-    bootstrap().catch(() => {});
-  });
+      console.log('[OFFLINE] Iniciando bootstrap...');
+      const ok = await bootstrap();
+      console.log('[OFFLINE] Bootstrap', ok ? 'OK' : 'FAILED');
+    } catch (e) {
+      console.error('[OFFLINE] Bootstrap auto-init error:', e);
+    }
+  })();
 })();
