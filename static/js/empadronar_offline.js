@@ -78,11 +78,21 @@
         await db.put('catalogo_artefactos', item);
       }
       await db.put('meta', { key: 'last_bootstrap', value: data.sync_at });
+      // Config como entrada agregada (compatibilidad) + una entrada por clave
+      // para lookups individuales (`config:cargo_fijo_mensual`, etc.).
       if (data.config) {
         await db.put('meta', { key: 'config_municipio', value: data.config });
+        for (const [clave, valor] of Object.entries(data.config)) {
+          await db.put('meta', { key: 'config:' + clave, value: valor });
+        }
       }
       if (data.user) {
         await db.put('meta', { key: 'user_info', value: data.user });
+      }
+      // Reportar errores parciales del servidor (alguna seccion del bootstrap
+      // pudo fallar sin abortar las demas).
+      if (data.errors && data.errors.length > 0) {
+        console.warn('[OFFLINE] Bootstrap con errores parciales:', data.errors);
       }
       console.log('[OFFLINE] Bootstrap OK',
         (data.comunidades || []).length, 'comunidades,',
