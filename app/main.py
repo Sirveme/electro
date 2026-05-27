@@ -12,6 +12,7 @@ from app.jinja_filters import register_filters
 from app.middleware.csrf_cookie import CSRFCookieMiddleware
 from app.routes import auth as auth_routes
 from app.routes import portal as portal_routes
+from app.routes import pwa as pwa_routes
 from app.routes.superadmin import dashboard as sa_dashboard
 from app.routes.superadmin import municipios as sa_municipios
 from app.routes.tenant import dashboard as tenant_dashboard
@@ -84,6 +85,7 @@ async def healthz():
 
 app.include_router(auth_routes.router)
 app.include_router(portal_routes.router)
+app.include_router(pwa_routes.router)
 app.include_router(sa_dashboard.router)
 app.include_router(sa_municipios.router)
 app.include_router(tenant_dashboard.router)
