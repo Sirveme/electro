@@ -4,6 +4,7 @@ from fastapi import Request
 from app.dependencies import CurrentUser
 from app.services.csrf import CSRF_COOKIE_NAME
 from app.utils.flash import pop_flashes
+from app.version import APP_VERSION
 
 
 def build_context(
@@ -33,6 +34,7 @@ def build_context(
             "flashes": flashes,
         },
         "flashes": flashes,
+        "app_version": APP_VERSION,
     }
     ctx.update(extra)
     return ctx

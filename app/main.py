@@ -33,6 +33,7 @@ from app.routes.tenant import reportes as tenant_reportes
 from app.routes.tenant import vivienda_admin as tenant_vivienda_admin
 from app.routes.tenant import morador_admin as tenant_morador_admin
 from app.routes.tenant import api_offline as tenant_api_offline
+from app.routes.tenant import api_version as tenant_api_version
 from app.routes.tenant import sync as tenant_sync
 
 logging.basicConfig(
@@ -108,4 +109,5 @@ app.include_router(tenant_reportes.router)
 app.include_router(tenant_vivienda_admin.router)
 app.include_router(tenant_morador_admin.router)
 app.include_router(tenant_api_offline.router)
+app.include_router(tenant_api_version.router)
 app.include_router(tenant_sync.router)
