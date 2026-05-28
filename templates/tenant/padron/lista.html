@@ -9,6 +9,22 @@
     <a href="/app/sync" class="pendientes-link">Ver cola →</a>
   </div>
 
+  <div id="lista-actualizar-banner" class="lista-actualizar-banner hidden">
+    <span>Se sincronizaron viviendas nuevas. La lista que ves puede estar desactualizada.</span>
+    <button class="btn btn--sm btn--primary" type="button" onclick="window.location.reload()">
+      Actualizar lista
+    </button>
+  </div>
+
+  <script>
+    window.addEventListener('electro:sync-completed', function (e) {
+      if (e.detail && e.detail.ok > 0) {
+        var b = document.getElementById('lista-actualizar-banner');
+        if (b) b.classList.remove('hidden');
+      }
+    });
+  </script>
+
   <script>
     (async function () {
       if (!window.ElectroDB) return;

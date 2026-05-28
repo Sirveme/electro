@@ -88,10 +88,9 @@
     </fieldset>
 
     <div class="form-actions">
-      <button type="button" class="btn btn--ghost"
-        _="on click
-            call window.appModal.confirm('Cancelar empadronamiento', '¿Descartar los datos ingresados?', {okText:'Sí, cancelar', cancelText:'Volver', danger:true})
-            then if it then location.href = '/app/padron/'">Cancelar</button>
+      <button type="button" class="btn btn--ghost" onclick="window.cancelarEmpadronamiento()">
+        Cancelar
+      </button>
       <button type="submit" class="btn btn--primary">Continuar →</button>
     </div>
   </form>
