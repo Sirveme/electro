@@ -129,9 +129,19 @@ async def get_current_user_optional(
 
 
 async def require_login(
+    request: Request,
     user: Optional[CurrentUser] = Depends(get_current_user_optional),
 ) -> CurrentUser:
     if user is None:
+        # Navegador → redirect a /login (mejor UX que un JSON 401 al borrar
+        # cookies o tras "Clear site data"). Cliente JSON → 401 estandar.
+        accept = (request.headers.get("accept") or "").lower()
+        wants_html = "text/html" in accept
+        # Heuristica adicional: si la URL es /app/api/*, devolver JSON aunque
+        # el navegador haya mandado Accept: */* por defecto.
+        is_api = request.url.path.startswith("/app/api/") or request.url.path.startswith("/api/")
+        if wants_html and not is_api:
+            raise RedirectException("/login")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Sesión requerida",

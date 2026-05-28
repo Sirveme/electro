@@ -21,6 +21,11 @@ def build_context(
     # fallback: cookie existente (request con cookie previa)
     csrf_token = getattr(request.state, "csrf_token", None) or request.cookies.get(CSRF_COOKIE_NAME, "")
     flashes = pop_flashes(request) if hasattr(request, "session") else []
+    # Branding del municipio (logo, nombre): cacheado en la sesion al login.
+    # Si no esta, devolvemos defaults vacios para que el topbar muestre solo "electro".
+    branding = {}
+    if hasattr(request, "session"):
+        branding = request.session.get("branding") or {}
     ctx = {
         "request": request,
         "ctx": {
@@ -35,6 +40,7 @@ def build_context(
         },
         "flashes": flashes,
         "app_version": APP_VERSION,
+        "branding": branding,
     }
     ctx.update(extra)
     return ctx
