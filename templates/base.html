@@ -8,6 +8,8 @@
 
   <link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg">
 
+  <meta name="app-version" content="{{ app_version }}">
+
   <!-- PWA -->
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#1B4FF5">
@@ -91,9 +93,13 @@
   <script src="/static/js/pwa_install.js?v=1" defer></script>
 
   <!-- PWA offline (03b): empadronar/sync/logout-guard -->
-  <script src="/static/js/empadronar_offline.js?v=1" defer></script>
-  <script src="/static/js/sync_engine.js?v=1" defer></script>
-  <script src="/static/js/logout_sync_guard.js?v=1" defer></script>
+  <script src="/static/js/empadronar_offline.js?v=2" defer></script>
+  <script src="/static/js/sync_engine.js?v=2" defer></script>
+  <script src="/static/js/logout_sync_guard.js?v=2" defer></script>
+
+  <!-- PWA offline (03c): cobranza + version check -->
+  <script src="/static/js/cobrar_offline.js?v=1" defer></script>
+  <script src="/static/js/version_check.js?v=1" defer></script>
 
   <script>
     // Detectar errores criticos de hyperscript que rompen scripts subsiguientes.
