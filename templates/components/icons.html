@@ -1,0 +1,63 @@
+{# =================================================================
+   Iconos SVG inline reutilizables.
+   - Tamano por defecto 16x16 (14x14 los pequenos), heredan color via
+     currentColor — pintalos con el color del contenedor.
+   - `vertical-align:-3px` para alinear con texto inline.
+   - NO usar pack externo de iconos: la app debe funcionar offline.
+   ================================================================= #}
+
+{% macro icon_cobrar() %}
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+     stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px">
+  <rect x="2" y="6" width="20" height="12" rx="2"/>
+  <circle cx="12" cy="12" r="2"/>
+  <path d="M6 12h.01M18 12h.01"/>
+</svg>
+{% endmacro %}
+
+{% macro icon_ver() %}
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+     stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px">
+  <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/>
+  <circle cx="12" cy="12" r="3"/>
+</svg>
+{% endmacro %}
+
+{% macro icon_buscar() %}
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+     stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px">
+  <circle cx="11" cy="11" r="8"/>
+  <path d="m21 21-4.3-4.3"/>
+</svg>
+{% endmacro %}
+
+{% macro icon_ubicacion() %}
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+     stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px">
+  <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/>
+  <circle cx="12" cy="10" r="3"/>
+</svg>
+{% endmacro %}
+
+{% macro icon_check() %}
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+     stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px">
+  <path d="M20 6 9 17l-5-5"/>
+</svg>
+{% endmacro %}
+
+{% macro icon_alerta() %}
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+     stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px">
+  <path d="M12 9v4M12 17h.01"/>
+  <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>
+</svg>
+{% endmacro %}
+
+{% macro icon_editar() %}
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+     stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px">
+  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+  <path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+</svg>
+{% endmacro %}
