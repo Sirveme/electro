@@ -64,10 +64,12 @@
     <span class="theme-toggle-switch" aria-hidden="true"></span>
   </div>
 
-  <div class="side-menu-section">
-    <form method="post" action="/logout" class="logout-form" style="padding: 10px var(--space-4)" class="form" hx-boost="false">
-      {% include 'components/csrf_input.html' %}
-      <button type="submit" class="btn btn--ghost btn--block">Salir</button>
-    </form>
+  <div class="side-menu-section" style="padding: 10px var(--space-4)">
+    {# Logout via GET: la ruta GET /logout es idempotente (solo limpia session
+       y redirige). Evita el CSRF del POST en el menu, que el guard de
+       sincronizacion intercepta y reinyecta con form.submit() (cuyo flujo a
+       veces perdia la cookie _csrf en standalone PWA). #}
+    <a href="/logout" class="btn btn--ghost btn--block logout-link" id="logout-link"
+       data-bypass-guard="0">Salir</a>
   </div>
 </aside>
