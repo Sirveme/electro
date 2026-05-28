@@ -84,6 +84,7 @@ async def login_submit(
         for s in schemas:
             schema_name = s.nspname
             async with tenant_session(schema_name) as ts:
+                # 2a) Buscar en usuarios (empadronadores, admin, cajeros, etc.)
                 u = (
                     await ts.execute(
                         text(
@@ -98,6 +99,14 @@ async def login_submit(
                     request.session["kind"] = "tenant"
                     request.session["user_id"] = u.id
                     request.session["tenant_schema"] = schema_name
+                    # Cachear branding del municipio en la sesion (1 query
+                    # al login, despues lo lee context_processor sin DB).
+                    try:
+                        from app.services.tarifa_service import obtener_branding
+                        request.session["branding"] = await obtener_branding(ts)
+                    except Exception:
+                        logger.exception("No se pudo cargar branding al login")
+                        request.session["branding"] = {}
                     await ts.execute(
                         text("UPDATE usuarios SET ultimo_login = NOW() WHERE id = :id"),
                         {"id": u.id},
@@ -111,6 +120,38 @@ async def login_submit(
                     if u.debe_cambiar_clave:
                         return RedirectResponse("/app/cuenta/cambiar-clave", status_code=303)
                     return RedirectResponse("/app/", status_code=303)
+
+                # 2b) Buscar en moradores con acceso_portal=true (jefes/responsables de pago)
+                m = (
+                    await ts.execute(
+                        text(
+                            "SELECT id, dni, nombre_completo, access_code, debe_cambiar_clave, vivienda_id "
+                            "FROM moradores "
+                            "WHERE dni = :d AND activo = TRUE AND acceso_portal = TRUE "
+                            "  AND access_code IS NOT NULL"
+                        ),
+                        {"d": usuario_n},
+                    )
+                ).first()
+                if m and verify_password(password, m.access_code):
+                    request.session.clear()
+                    request.session["kind"] = "morador"
+                    request.session["user_id"] = m.id
+                    request.session["tenant_schema"] = schema_name
+                    request.session["vivienda_id"] = m.vivienda_id
+                    await ts.execute(
+                        text("UPDATE moradores SET ultimo_login = NOW() WHERE id = :id"),
+                        {"id": m.id},
+                    )
+                    if needs_rehash(m.access_code):
+                        await ts.execute(
+                            text("UPDATE moradores SET access_code = :h WHERE id = :id"),
+                            {"h": hash_password(password), "id": m.id},
+                        )
+                    await ts.commit()
+                    if m.debe_cambiar_clave:
+                        return RedirectResponse("/portal/cuenta/cambiar-clave", status_code=303)
+                    return RedirectResponse("/portal/", status_code=303)
 
     set_flash(request, "error", "Credenciales invalidas.")
     return _templates(request).TemplateResponse(
