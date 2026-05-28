@@ -28,6 +28,7 @@ import json as _json
 import logging
 import time
 from datetime import date, datetime
+from decimal import Decimal, InvalidOperation
 from typing import Optional
 
 from sqlalchemy import text
@@ -372,3 +373,201 @@ async def procesar_empadronamiento_offline(
                 except Exception:
                     logger.exception("No se pudo limpiar foto huérfana path=%s", p)
         raise
+
+
+# ============================================================================
+# COBRANZA OFFLINE
+# ============================================================================
+
+
+async def procesar_pago_offline(
+    session: AsyncSession,
+    payload: dict,
+    user_id: int,
+    tenant_schema: str,
+) -> dict:
+    """Procesa un cobro creado offline.
+
+    Schema real del proyecto:
+    - `pagos` es una fila por cuota (FK NOT NULL a `cuotas`). No existe
+      `cuota_pagos`. Si el cobro offline cubre varias cuotas, generamos
+      varios `pagos` que comparten el mismo `uuid_cliente` (lote logico).
+    - `caja_aperturas` usa `cajero_user_id` (no `usuario_id`).
+    - `cuotas` usa `saldo_pendiente` (no `monto_pendiente`).
+    - Reusamos `pago_service.registrar_pago` para no duplicar validaciones
+      (sobrepago, caja, metodo) y despues hacemos UPDATE del uuid_cliente.
+
+    Payload esperado:
+    - uuid_pago        : UUID v4 generado en cliente (idempotencia)
+    - codigo_interno   : preferido para resolver vivienda
+    - vivienda_id      : alternativa si el cliente lo conoce
+    - cuota_ids        : lista de cuotas a pagar
+    - monto_total      : suma a distribuir FIFO
+    - metodo_pago      : 'efectivo'|'yape'|'plin'
+    - referencia_externa
+    - capturado_at     : timestamp del cobro original (informativo)
+
+    Reglas:
+    - Si uuid_pago ya existe en `pagos.uuid_cliente`, retorna ya_existia=True.
+    - Si el cajero NO tiene caja abierta y el metodo es efectivo → conflict.
+    - Si una cuota no existe, pertenece a otra vivienda, esta anulada o ya
+      pagada → conflict (el lote completo falla — un cobro multi-cuota es
+      atomico).
+    """
+    from app.services.pago_service import registrar_pago, PagoError
+    from app.services.caja_service import caja_abierta_de
+
+    uuid_pago = payload.get("uuid_pago") or payload.get("uuid_cliente")
+    if not uuid_pago:
+        raise SyncConflict("uuid_pago requerido en payload")
+
+    # 1. Idempotencia
+    existing = (
+        await session.execute(
+            text("SELECT id FROM pagos WHERE uuid_cliente = :u LIMIT 1"),
+            {"u": uuid_pago},
+        )
+    ).mappings().first()
+    if existing:
+        logger.info("Pago offline ya existía: uuid=%s pago_id=%s", uuid_pago, existing["id"])
+        return {"pago_id": existing["id"], "ya_existia": True}
+
+    # 2. Resolver vivienda_id (preferimos codigo_interno)
+    vivienda_id = payload.get("vivienda_id")
+    if not vivienda_id and payload.get("codigo_interno"):
+        row = (
+            await session.execute(
+                text("SELECT id FROM viviendas WHERE codigo_interno = :c"),
+                {"c": payload["codigo_interno"]},
+            )
+        ).mappings().first()
+        if not row:
+            raise SyncConflict(
+                f"Vivienda {payload['codigo_interno']} no encontrada"
+            )
+        vivienda_id = row["id"]
+    if not vivienda_id:
+        raise SyncConflict("vivienda_id o codigo_interno requerido")
+
+    # 3. Vivienda no anulada
+    v = (
+        await session.execute(
+            text("SELECT codigo_interno, anulada_at FROM viviendas WHERE id = :vid"),
+            {"vid": vivienda_id},
+        )
+    ).mappings().first()
+    if not v:
+        raise SyncConflict("Vivienda no encontrada")
+    if v["anulada_at"]:
+        raise SyncConflict(f"Vivienda {v['codigo_interno']} esta anulada")
+
+    # 4. Validar cuotas
+    cuota_ids_raw = payload.get("cuota_ids") or []
+    if isinstance(cuota_ids_raw, (int, str)):
+        cuota_ids_raw = [cuota_ids_raw]
+    try:
+        cuota_ids = [int(c) for c in cuota_ids_raw if c]
+    except (TypeError, ValueError) as exc:
+        raise SyncConflict(f"cuota_ids invalidos: {exc}") from exc
+    if not cuota_ids:
+        # Soporte legacy: pago de una sola cuota via 'cuota_id'
+        single = payload.get("cuota_id")
+        if single:
+            cuota_ids = [int(single)]
+    if not cuota_ids:
+        raise SyncConflict("Sin cuotas para cobrar")
+
+    rows = (
+        await session.execute(
+            text(
+                "SELECT id, vivienda_id, estado, saldo_pendiente "
+                "FROM cuotas WHERE id = ANY(:ids)"
+            ),
+            {"ids": cuota_ids},
+        )
+    ).mappings().all()
+    cuotas_dict = {r["id"]: dict(r) for r in rows}
+    for cid in cuota_ids:
+        if cid not in cuotas_dict:
+            raise SyncConflict(f"Cuota {cid} no existe")
+        c = cuotas_dict[cid]
+        if c["vivienda_id"] != vivienda_id:
+            raise SyncConflict(f"Cuota {cid} pertenece a otra vivienda")
+        if c["estado"] == "pagado":
+            raise SyncConflict(f"Cuota {cid} ya esta pagada")
+        if c["estado"] == "anulada":
+            raise SyncConflict(f"Cuota {cid} esta anulada")
+
+    # 5. Caja abierta del cajero AHORA (no la del momento del cobro original)
+    metodo = (payload.get("metodo_pago") or payload.get("metodo") or "efectivo").lower()
+    caja = await caja_abierta_de(session, user_id)
+    if metodo == "efectivo" and not caja:
+        raise SyncConflict(
+            "No tienes caja abierta. Abre caja antes de sincronizar pagos en efectivo."
+        )
+    caja_id = caja["id"] if caja else None
+
+    # 6. Distribuir monto FIFO y registrar cada pago (reusa pago_service)
+    try:
+        monto_total = Decimal(str(payload.get("monto_total", "0")))
+    except (InvalidOperation, TypeError, ValueError) as exc:
+        raise SyncConflict(f"monto_total invalido: {exc}") from exc
+    if monto_total <= 0:
+        raise SyncConflict("monto_total debe ser > 0")
+
+    referencia = payload.get("referencia_externa") or None
+    obs_base = payload.get("observaciones") or ""
+    obs_offline = (
+        f"[Offline sincronizado · uuid {uuid_pago[:8]}…"
+        + (f" · capturado {payload.get('capturado_at')}" if payload.get("capturado_at") else "")
+        + "]"
+    )
+    observaciones = (obs_base + " " + obs_offline).strip() if obs_base else obs_offline
+
+    pago_ids: list[int] = []
+    restante = monto_total.quantize(Decimal("0.01"))
+    for cid in cuota_ids:
+        if restante <= 0:
+            break
+        pendiente = Decimal(str(cuotas_dict[cid]["saldo_pendiente"]))
+        aplicar = min(restante, pendiente).quantize(Decimal("0.01"))
+        if aplicar <= 0:
+            continue
+        try:
+            pago_id = await registrar_pago(
+                session,
+                cuota_id=cid,
+                monto=aplicar,
+                metodo=metodo,
+                user_id=user_id,
+                caja_apertura_id=caja_id,
+                observaciones=observaciones,
+                referencia_externa=referencia,
+            )
+        except PagoError as exc:
+            # Cualquier validacion fallida vuelve la transaccion atras y
+            # marca el item como conflict para revision manual.
+            raise SyncConflict(f"Cuota {cid}: {exc}") from exc
+
+        # Marcar el pago recién creado con el uuid_cliente del lote logico.
+        await session.execute(
+            text("UPDATE pagos SET uuid_cliente = :u WHERE id = :id"),
+            {"u": uuid_pago, "id": pago_id},
+        )
+        pago_ids.append(pago_id)
+        restante -= aplicar
+
+    if not pago_ids:
+        raise SyncConflict("No se aplico ningun pago (todas las cuotas sin saldo)")
+
+    await session.commit()
+    logger.info(
+        "Pago offline OK schema=%s uuid=%s pagos=%s monto=%s caja=%s",
+        tenant_schema, uuid_pago, pago_ids, monto_total, caja_id,
+    )
+    return {
+        "pago_id": pago_ids[0],          # compatibilidad con cliente
+        "pago_ids": pago_ids,            # lista completa para auditoria
+        "caja_apertura_id": caja_id,
+        "ya_existia": False,
+    }
