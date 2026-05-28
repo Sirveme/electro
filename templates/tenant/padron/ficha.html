@@ -74,8 +74,9 @@
     {% endif %}
   </div>
 
-  <h2>Moradores</h2>
-  <div class="moradores-grid">
+  <div class="card">
+    <h2 class="card-titulo">Moradores</h2>
+    <div class="moradores-grid">
     {% for m in moradores %}
       <div class="morador-card{% if m.es_jefe_familia %} morador-card--jefe{% endif %}">
         <div class="morador-card-head">
@@ -93,8 +94,10 @@
         {% endif %}
       </div>
     {% endfor %}
+    </div>
   </div>
 
+  <div class="card">
   <div class="tabs"
     _="on click from <button[data-tab]/>
         set tab to event.target.getAttribute('data-tab')
@@ -180,7 +183,7 @@
         {% for e in eventos %}
         <li>
           <strong>{{ e.tipo }}</strong>
-          <span class="muted">{{ e.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+          <span class="muted">{{ e.created_at | fmt_lima }}</span>
           {% if e.descripcion %}<div>{{ e.descripcion }}</div>{% endif %}
         </li>
         {% endfor %}
@@ -188,6 +191,7 @@
       {% endif %}
     </div>
   </div>
+  </div>{# /card de tabs #}
 </section>
 
 {% if (ctx.user | puede('viviendas', 'admin', 'anular')) and not vivienda.anulada_at %}
