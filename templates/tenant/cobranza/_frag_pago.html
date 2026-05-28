@@ -2,9 +2,13 @@
   Fragmento de formulario de cobro inline, embebido en la fila de cada recibo
   pendiente/parcial. Requiere variables: vivienda, c (cuota).
 #}
-<form method="post" action="/app/cobranza/vivienda/{{ vivienda.codigo_interno }}/cobrar" class="form pago-form">
+<form method="post" action="/app/cobranza/vivienda/{{ vivienda.codigo_interno }}/cobrar"
+      class="form pago-form"
+      hx-boost="false" data-no-htmx="true"
+      onsubmit="return window.manejarSubmitPago(event, this)">
   {% include 'components/csrf_input.html' %}
   <input type="hidden" name="cuota_id" value="{{ c.id }}">
+  <input type="hidden" name="codigo_interno" value="{{ vivienda.codigo_interno }}">
 
   <div class="form-row">
     <label class="form-field">
