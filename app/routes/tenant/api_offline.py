@@ -28,6 +28,7 @@ from app.services.csrf import CSRF_COOKIE_NAME
 from app.services.sync_service import (
     SyncConflict,
     procesar_empadronamiento_offline,
+    procesar_pago_offline,
 )
 
 logger = logging.getLogger(__name__)
@@ -285,6 +286,43 @@ async def sync_status(
             "user_id": user.user_id,
         }
     )
+
+
+@router.post("/registrar-pago-offline", dependencies=[Depends(verify_csrf_header)])
+async def registrar_pago_offline(
+    request: Request,
+    user: CurrentUser = Depends(require_password_changed),
+):
+    """Recibe y aplica un cobro creado offline (ver sync_service)."""
+    if not user.puede("cobranza", "pagos", "cobrar"):
+        raise HTTPException(403, "Sin permiso")
+
+    try:
+        payload = await request.json()
+    except Exception:
+        raise HTTPException(400, "Payload JSON invalido")
+    if not isinstance(payload, dict):
+        raise HTTPException(400, "Payload debe ser un objeto JSON")
+
+    async with tenant_session(user.tenant_schema) as ts:
+        try:
+            result = await procesar_pago_offline(
+                ts, payload, user.user_id, user.tenant_schema
+            )
+        except SyncConflict as exc:
+            return JSONResponse(
+                {"ok": False, "error": "conflict", "message": str(exc),
+                 "detalle": exc.detalle},
+                status_code=409,
+            )
+        except Exception as exc:
+            logger.exception("Error procesando pago offline")
+            return JSONResponse(
+                {"ok": False, "error": "internal", "message": str(exc)},
+                status_code=500,
+            )
+
+    return JSONResponse({"ok": True, **result})
 
 
 @router.get("/dni-check")
