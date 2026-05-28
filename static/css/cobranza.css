@@ -127,96 +127,186 @@
 /* .btn--danger ya vive en components.css */
 
 /* ============================================================
-   Tablero de cobranza v2 (zClaude-fix-14)
+   Tablero de cobranza v2 (zClaude-fix-14 + zClaude-fix-15 visual)
+   Principio: cada elemento distinto se diferencia por un borde de color.
    ============================================================ */
 
 .cobranza-tablero { padding-top: var(--space-3); }
 
+/* === Metricas con borde de color (stat-card) === */
 .cobranza-stats {
-  display: flex;
-  gap: 24px;
-  flex-wrap: wrap;
-  align-items: center;
-  padding: 16px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 1.25rem;
+}
+@media (max-width: 720px) {
+  .cobranza-stats { grid-template-columns: 1fr; }
+}
+.stat-card {
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  margin-bottom: var(--space-3);
+  padding: 14px 16px;
+  border-left-width: 4px;
 }
-.stat-item { display: flex; flex-direction: column; gap: 2px; min-width: 110px; }
-.stat-label { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
-.stat-value { font-size: 1.2rem; font-weight: 700; color: var(--text-strong); }
-.stat-value--ok { color: var(--success); }
-.stat-value--warn { color: var(--accent); }
+.stat-card--ok    { border-left-color: var(--success); }
+.stat-card--warn  { border-left-color: var(--accent);  }
+.stat-card--info  { border-left-color: var(--primary); }
+.stat-label {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.stat-value {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text-strong);
+  margin: 2px 0;
+}
+.stat-value--ok   { color: var(--success); }
+.stat-value--warn { color: var(--accent);  }
+.stat-hint { font-size: 0.75rem; color: var(--text-muted); }
 
+/* === Buscador === */
 .cobranza-search {
   display: flex;
   gap: 8px;
-  margin-bottom: var(--space-2);
+  margin-bottom: 12px;
 }
 .cobranza-search .search-input {
   flex: 1;
-  padding: 10px 14px;
+  padding: 11px 14px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
-  background: var(--bg-surface);
+  background: var(--bg-base);
   color: var(--text);
-  font-size: 1rem;
+  font-size: 0.95rem;
 }
 .cobranza-search .search-input:focus {
   outline: none;
-  border-color: var(--border-focus);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(27, 79, 245, 0.15);
 }
 
+/* === Etiquetas (pills) === */
 .cobranza-etiquetas {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: wrap;
   align-items: center;
-  margin-bottom: var(--space-3);
+  margin-bottom: 1.25rem;
 }
 .etiquetas-label { font-size: 0.85rem; color: var(--text-muted); margin-right: 4px; }
 .etiqueta {
-  padding: 4px 12px;
+  padding: 5px 14px;
   border-radius: 16px;
-  background: var(--bg-base);
+  background: var(--bg-surface);
   border: 1px solid var(--border);
   color: var(--text);
   text-decoration: none;
   font-size: 0.85rem;
-  transition: all var(--transition);
+  transition: all 0.15s;
 }
-.etiqueta:hover { border-color: var(--border-strong); }
+.etiqueta:hover { border-color: var(--primary); }
 .etiqueta--activa {
   background: var(--primary);
   color: var(--primary-text-on);
   border-color: var(--primary);
 }
 
-.cobranza-lista { display: flex; flex-direction: column; gap: 8px; }
+/* === Tarjetas de vivienda con borde de color por estado === */
+.cobranza-lista { display: flex; flex-direction: column; gap: 10px; }
 .vivienda-card {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  transition: border-color 0.15s, transform 0.1s;
 }
 .vivienda-card:hover { border-color: var(--border-strong); }
+.vivienda-card--deuda { border-left-color: var(--accent);  }
+.vivienda-card--aldia { border-left-color: var(--success); }
+
 .vivienda-info {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
   flex: 1 1 240px;
   min-width: 0;
 }
-.vivienda-codigo { font-weight: 700; color: var(--primary); }
+.vivienda-codigo { font-weight: 700; color: var(--primary); font-size: 1rem; }
 .vivienda-jefe { font-size: 0.95rem; color: var(--text); }
 .vivienda-ref { font-size: 0.8rem; color: var(--text-muted); }
-.vivienda-deuda { flex: 0 0 auto; }
+.vivienda-estado { flex: 0 0 auto; }
+.vivienda-acciones { display: flex; gap: 6px; align-items: center; flex: 0 0 auto; }
+
+/* === Badges con fondo de color (no solo texto) === */
+.badge--deuda {
+  background: var(--accent-soft);
+  color: var(--accent);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.badge--aldia {
+  background: var(--success-soft);
+  color: var(--success);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* === Botón Cobrar destacado === */
+.btn--cobrar {
+  background: var(--primary);
+  color: var(--primary-text-on);
+  border: none;
+  font-weight: 600;
+  padding: 9px 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.9rem;
+  transition: background 0.15s, transform 0.1s;
+}
+.btn--cobrar:hover { background: var(--primary-hover); }
+.btn--cobrar:active { transform: scale(0.97); }
+
+/* === Botón icono (solo SVG, neutral) === */
+.btn--icono {
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 9px 11px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  transition: all 0.15s;
+}
+.btn--icono:hover { border-color: var(--primary); color: var(--primary); }
+
+/* === Compat retro: clases viejas (mantener para no romper otras vistas) === */
 .deuda-badge {
   background: var(--accent-soft);
   color: var(--accent);
@@ -227,7 +317,6 @@
   white-space: nowrap;
 }
 .deuda-badge--ok { background: var(--success-soft); color: var(--success); }
-.vivienda-acciones { display: flex; gap: 6px; flex-wrap: wrap; flex: 0 0 auto; }
 
 /* Modal inline reusado por el tablero (mismo patron que _modal_anular) */
 .modal-inline {
@@ -335,4 +424,94 @@
   margin: 0 0 16px;
   color: var(--text-muted);
   font-weight: 500;
+}
+
+/* ============================================================
+   Pantalla de bienvenida (dashboard tenant)
+   ============================================================ */
+.bienvenida {
+  max-width: 720px;
+  margin: 0 auto;
+  text-align: center;
+  padding: 2rem 1rem 3rem;
+}
+.bienvenida-logo-img {
+  max-height: 120px;
+  width: auto;
+  margin: 0 auto 16px;
+  display: block;
+  background: white;
+  padding: 6px;
+  border-radius: var(--radius);
+}
+.bienvenida-logo-placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100px;
+  height: 100px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  border-radius: var(--radius-lg);
+  margin-bottom: 16px;
+}
+.bienvenida-titulo {
+  font-size: 1.8rem;
+  margin: 0 0 4px;
+  color: var(--text-strong);
+}
+.bienvenida-subtitulo {
+  font-size: 1rem;
+  color: var(--text-muted);
+  margin: 0 0 24px;
+}
+.bienvenida-saludo {
+  margin: 0 0 28px;
+}
+.bienvenida-accesos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  text-align: left;
+  margin-top: 16px;
+}
+.acceso-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-left-color: var(--border-strong);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  text-decoration: none;
+  color: var(--text);
+  transition: border-color 0.15s, transform 0.1s;
+}
+.acceso-card:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+}
+.acceso-card--primary { border-left-color: var(--primary); }
+.acceso-titulo {
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--text-strong);
+}
+.acceso-desc {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* ============================================================
+   Card-titulo (encabezado dentro de .card de components.css)
+   ============================================================ */
+.card-titulo {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0 0 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-strong);
 }
