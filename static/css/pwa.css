@@ -199,6 +199,72 @@
   display: none;
 }
 
+/* Banner sticky de actualizacion disponible (version_check.js) */
+.update-banner {
+  position: sticky;
+  top: 0;
+  z-index: 999;
+  padding: 10px 16px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.95rem;
+  flex-wrap: wrap;
+}
+.update-banner--info {
+  background: var(--primary);
+  color: var(--primary-text-on);
+}
+.update-banner--critical {
+  background: var(--danger);
+  color: var(--primary-text-on);
+  font-weight: 600;
+}
+.update-banner .btn--sm {
+  padding: 4px 12px;
+  font-size: 0.85rem;
+}
+
+/* Banner "Actualizar lista" en /app/padron/ tras sync exitoso */
+.lista-actualizar-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  background: var(--success-soft);
+  border: 1px solid var(--success);
+  color: var(--success);
+  padding: 10px 16px;
+  border-radius: var(--radius);
+  margin-bottom: var(--space-3);
+  font-size: 0.9rem;
+}
+.lista-actualizar-banner.hidden { display: none; }
+
+/* Sección "Respaldo y actualizaciones" al final de /app/sync */
+.sync-extras {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+.sync-extras h3 {
+  font-size: 1rem;
+  margin: 0 0 8px;
+  color: var(--text-strong);
+}
+.btn-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.btn-group label.btn {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+}
+
 /* Banner "X pendientes" en /app/padron/ (Opcion B) */
 .pendientes-banner {
   display: flex;
