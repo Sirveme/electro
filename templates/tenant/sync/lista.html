@@ -33,7 +33,38 @@
     empadronamientos y cobros que hayas hecho sin conexión. Si el modo
     está en <em>Auto</em>, también se sincroniza solo al volver online.
   </p>
+
+  <div class="sync-extras">
+    <h3>Respaldo y restauración</h3>
+    <p class="muted small">
+      Si vas a cambiar de dispositivo o quieres una copia de seguridad de los
+      datos pendientes, usa estos botones.
+    </p>
+    <div class="btn-group">
+      <button class="btn btn--ghost" type="button" onclick="window.electroExportarPendientes()">
+        Exportar pendientes
+      </button>
+      <label class="btn btn--ghost">
+        Importar desde archivo
+        <input type="file" accept=".json"
+               onchange="window.electroImportarPendientes(this)"
+               style="display:none">
+      </label>
+    </div>
+
+    <h3 style="margin-top: 24px">Actualizaciones</h3>
+    <p class="muted small">
+      Fuerza una revisión de versión y, si hay una nueva, te ofrece instalarla.
+    </p>
+    <button class="btn btn--primary" type="button"
+            onclick="window.electroVersionCheck({force:true})">
+      Buscar actualizaciones
+    </button>
+  </div>
 </section>
+
+<script src="/static/js/export_indexeddb.js?v=1" defer></script>
+<script src="/static/js/import_indexeddb.js?v=1" defer></script>
 
 <script>
   (function () {
