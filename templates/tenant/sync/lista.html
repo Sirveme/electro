@@ -66,6 +66,11 @@
         failed: 'Fallido',
         conflict: 'Conflicto',
       })[it.status] || it.status;
+      var canDiscard = (it.status === 'conflict' || it.status === 'failed');
+      var btnDiscard = canDiscard
+        ? '<button class="btn btn--ghost btn--sm" type="button" onclick="window.descartarSyncItem(' +
+          it.id + ')">Descartar</button>'
+        : '';
       return ''
         + '<div class="sync-item sync-item--' + escapeHtml(it.status) + '">'
         +   '<div class="sync-item-info">'
@@ -73,9 +78,27 @@
         +     '<small class="muted">creado ' + escapeHtml(fmtFecha(it.created_at)) + '</small>'
         +     (it.last_error ? '<small class="sync-error">' + escapeHtml(it.last_error) + '</small>' : '')
         +   '</div>'
-        +   '<span class="badge badge-' + escapeHtml(it.status) + '">' + escapeHtml(statusLabel) + '</span>'
+        +   '<div class="sync-item-actions">'
+        +     '<span class="badge badge-' + escapeHtml(it.status) + '">' + escapeHtml(statusLabel) + '</span>'
+        +     btnDiscard
+        +   '</div>'
         + '</div>';
     }
+
+    window.descartarSyncItem = async function (id) {
+      var ok = await window.appModal.confirm(
+        'Descartar cambio',
+        '¿Seguro? Este cambio NO se enviara al servidor y se perdera.',
+        { danger: true, okText: 'Descartar', cancelText: 'Cancelar' }
+      );
+      if (ok !== true) return;
+      try {
+        await window.ElectroDB.delete('sync_queue', id);
+        await renderQueue();
+      } catch (e) {
+        await window.appModal.alert('Error', 'No se pudo descartar: ' + (e.message || e));
+      }
+    };
 
     async function renderQueue() {
       if (!window.ElectroDB) {
@@ -109,18 +132,34 @@
       elItems.innerHTML = items.map(renderItem).join('');
     }
 
+    function armarResumen(result) {
+      var lines = [
+        'Procesados: ' + result.total,
+        'OK: ' + result.ok,
+        'Conflictos: ' + result.conflict,
+        'Fallidos: ' + result.failed,
+      ];
+      if (result.detalles && result.detalles.length > 0) {
+        lines.push('');
+        lines.push('Detalles:');
+        result.detalles.forEach(function (d) {
+          var p = '• ' + d.tipo + ' [' + d.status + ']';
+          if (d.uuid) p += ' uuid ' + d.uuid;
+          lines.push(p + ': ' + d.error);
+        });
+      }
+      return lines.join('\n');
+    }
+
     btnSync.addEventListener('click', async function () {
       btnSync.disabled = true;
       btnSync.textContent = 'Sincronizando…';
       try {
         var result = await window.electroSync.sincronizar();
-        await window.appModal.alert(
-          'Sincronización completa',
-          'Procesados: ' + result.total + '\n' +
-          'OK: ' + result.ok + '\n' +
-          'Conflictos: ' + result.conflict + '\n' +
-          'Fallidos: ' + result.failed
-        );
+        var titulo = (result.conflict > 0 || result.failed > 0)
+          ? 'Sincronización con problemas'
+          : 'Sincronización completa';
+        await window.appModal.alert(titulo, armarResumen(result));
         await renderQueue();
       } catch (e) {
         await window.appModal.alert('Error de sincronización', String(e.message || e));
@@ -169,8 +208,9 @@
     border: 1px solid var(--border);
     border-radius: var(--radius);
   }
-  .sync-item-info { display: flex; flex-direction: column; gap: 2px; }
-  .sync-item-info .sync-error { color: var(--danger); margin-top: 4px; }
+  .sync-item-info { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+  .sync-item-info .sync-error { color: var(--danger); margin-top: 4px; word-break: break-word; }
+  .sync-item-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
   .sync-item--pending  { border-left: 3px solid var(--primary); }
   .sync-item--failed   { border-left: 3px solid var(--warning); }
   .sync-item--conflict { border-left: 3px solid var(--danger); }
