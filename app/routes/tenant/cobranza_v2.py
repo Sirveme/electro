@@ -48,12 +48,19 @@ _STOPWORDS = {
     "de", "la", "el", "en", "a", "con", "por", "del", "al", "los", "las",
     "un", "una", "y", "o", "casa", "frente", "costado", "lado", "cerca",
     "espaldas", "principal", "esquina", "calle", "avenida", "jiron", "jr",
-    "av", "para", "sin", "sobre", "entre", "hacia",
+    "av", "para", "sin", "sobre", "entre", "hacia", "izquierda", "derecha",
+    "metros", "metro", "inercepcion", "interseccion", "interseccion",
 }
 
 
 def _extraer_etiquetas(referencias: list[str], top_n: int = 6) -> list[str]:
-    """Top palabras frecuentes (>=2 viviendas) que sirvan como etiqueta."""
+    """Top palabras frecuentes (>=1 vivienda) que sirvan como etiqueta.
+
+    Umbral en 1: con pocas viviendas (al inicio del despliegue) ninguna
+    palabra se repetia y la barra de etiquetas quedaba vacia, perdiendo
+    su utilidad. Bajado a 1 — las etiquetas aparecen desde la primera
+    vivienda empadronada.
+    """
     contador: Counter[str] = Counter()
     for ref in referencias:
         if not ref:
@@ -65,7 +72,7 @@ def _extraer_etiquetas(referencias: list[str], top_n: int = 6) -> list[str]:
             if len(palabra) < 4 or palabra in _STOPWORDS or palabra.isdigit():
                 continue
             contador[palabra] += 1
-    return [p.capitalize() for p, freq in contador.most_common(top_n) if freq >= 2]
+    return [p.capitalize() for p, freq in contador.most_common(top_n) if freq >= 1]
 
 
 @router.get("", response_class=HTMLResponse)
@@ -125,9 +132,11 @@ async def tablero(
         where_clauses = ["v.activa = TRUE", "v.anulada_at IS NULL"]
         params: dict = {}
         if q:
+            # Buscar tambien en referencia_fisica — el usuario reportó que no
+            # encontraba "iglesia" / "puente" aunque estaban en la referencia.
             where_clauses.append(
                 "(v.codigo_interno ILIKE :q OR m.dni ILIKE :q "
-                "OR m.nombre_completo ILIKE :q)"
+                "OR m.nombre_completo ILIKE :q OR v.referencia_fisica ILIKE :q)"
             )
             params["q"] = f"%{q.strip()}%"
         if etiqueta:
