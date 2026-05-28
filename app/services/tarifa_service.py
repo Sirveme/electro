@@ -227,6 +227,55 @@ async def toggle_propio(session: AsyncSession, codigo: str) -> bool:
     return nuevo
 
 
+async def obtener_branding(session: AsyncSession) -> dict:
+    """Lee logo_url, nombre_municipalidad y nombre_corto de config_municipio.
+
+    Retorna dict siempre (con strings vacios si falta una clave). Usado por
+    auth.py al login para cachear branding en la sesion y por
+    configuracion.py para mostrar/guardar el form de marca.
+    """
+    rows = (
+        await session.execute(
+            text(
+                "SELECT clave, valor FROM config_municipio "
+                "WHERE clave IN ('logo_url', 'nombre_municipalidad', 'nombre_corto')"
+            )
+        )
+    ).all()
+    out = {"logo_url": "", "nombre_municipalidad": "", "nombre_corto": ""}
+    for r in rows:
+        if r.clave in out:
+            out[r.clave] = r.valor or ""
+    return out
+
+
+async def guardar_branding(
+    session: AsyncSession,
+    logo_url: Optional[str] = None,
+    nombre_municipalidad: Optional[str] = None,
+    nombre_corto: Optional[str] = None,
+) -> None:
+    """UPSERT de las claves de branding. Solo actualiza las que vengan no-None."""
+    items: list[tuple[str, str]] = []
+    if logo_url is not None:
+        items.append(("logo_url", logo_url))
+    if nombre_municipalidad is not None:
+        items.append(("nombre_municipalidad", nombre_municipalidad))
+    if nombre_corto is not None:
+        items.append(("nombre_corto", nombre_corto))
+    for clave, valor in items:
+        await session.execute(
+            text(
+                """
+                INSERT INTO config_municipio (clave, valor, tipo, descripcion)
+                VALUES (:k, :v, 'string', NULL)
+                ON CONFLICT (clave) DO UPDATE SET valor = EXCLUDED.valor
+                """
+            ),
+            {"k": clave, "v": valor},
+        )
+
+
 async def obtener_config_calculo(session: AsyncSession) -> dict:
     """
     Lee de config_municipio las claves usadas en el cálculo de recibo:
