@@ -1,0 +1,27 @@
+{# Modal del flujo de cobro nuevo (tablero v2). Se muestra/oculta con .hidden #}
+<div id="modal-cobrar" class="modal-inline hidden">
+  <div class="modal-inline-card">
+    <h2 id="cobrar-titulo">Cobrar</h2>
+
+    <p class="muted small">Selecciona los meses a cobrar:</p>
+    <div id="cobrar-cuotas-lista" class="cuotas-lista">
+      <p class="muted small">Cargando…</p>
+    </div>
+
+    <div class="cobrar-total-row">
+      <strong>Total a cobrar:</strong>
+      <strong class="cobrar-total-monto">S/ <span id="cobrar-total">0.00</span></strong>
+    </div>
+
+    <label for="numero-recibo">N° de recibo físico (opcional)</label>
+    <input type="text" id="numero-recibo" maxlength="80" placeholder="Ej. 001234">
+
+    <label for="observacion-cobro">Observación (opcional)</label>
+    <textarea id="observacion-cobro" rows="2" maxlength="200" placeholder="Notas adicionales"></textarea>
+
+    <div class="modal-actions">
+      <button class="btn btn--ghost" type="button" onclick="window.cobranzaCerrarModal()">Cancelar</button>
+      <button class="btn btn--primary" type="button" onclick="window.cobranzaConfirmar()">Registrar cobro</button>
+    </div>
+  </div>
+</div>

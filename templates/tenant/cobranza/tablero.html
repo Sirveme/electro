@@ -1,0 +1,306 @@
+{% extends 'base.html' %}
+{% block title %}Cobranza{% endblock %}
+{% block content %}
+<section class="page cobranza-tablero">
+
+  {# Barra de indicadores #}
+  <div class="cobranza-stats">
+    <div class="stat-item">
+      <span class="stat-label">Caja</span>
+      {% if caja %}
+        <span class="stat-value stat-value--ok">Abierta · #{{ caja.id }}</span>
+        <small class="muted">Desde {{ caja.abierta_at | fmt_lima('%H:%M') }}</small>
+      {% else %}
+        <span class="stat-value stat-value--warn">Cerrada</span>
+      {% endif %}
+    </div>
+    <div class="stat-item">
+      <span class="stat-label">Cobrado hoy</span>
+      <span class="stat-value">S/ {{ '%.2f' | format(cobrado_hoy) }}</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-label">Viviendas con deuda</span>
+      <span class="stat-value">{{ total_con_deuda }} / {{ total_activas }}</span>
+    </div>
+    {% if not caja and puede_abrir_caja %}
+      <button class="btn btn--sm btn--primary" type="button" onclick="window.cobranzaAbrirCajaRapido()">
+        Abrir caja ahora
+      </button>
+    {% endif %}
+  </div>
+
+  {# Buscador #}
+  <form method="get" action="/app/cobranza/" class="cobranza-search">
+    <input type="text" name="q" value="{{ q }}"
+           placeholder="Buscar por código, DNI o nombre…" class="search-input"
+           autocomplete="off">
+    {% if etiqueta_activa %}
+      <input type="hidden" name="etiqueta" value="{{ etiqueta_activa }}">
+    {% endif %}
+    <button type="submit" class="btn btn--ghost">Buscar</button>
+    {% if q %}
+      <a href="/app/cobranza/{% if etiqueta_activa %}?etiqueta={{ etiqueta_activa }}{% endif %}" class="btn btn--ghost">Limpiar</a>
+    {% endif %}
+  </form>
+
+  {# Etiquetas automaticas #}
+  {% if etiquetas %}
+  <div class="cobranza-etiquetas">
+    <span class="etiquetas-label">Filtrar por zona:</span>
+    <a href="/app/cobranza/{% if q %}?q={{ q }}{% endif %}"
+       class="etiqueta {% if not etiqueta_activa %}etiqueta--activa{% endif %}">
+      Todas
+    </a>
+    {% for et in etiquetas %}
+      <a href="/app/cobranza/?etiqueta={{ et }}{% if q %}&q={{ q }}{% endif %}"
+         class="etiqueta {% if etiqueta_activa == et %}etiqueta--activa{% endif %}">
+        {{ et }}
+      </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {# Lista de viviendas #}
+  <div class="cobranza-lista">
+    {% for v in viviendas %}
+      <div class="vivienda-card" data-codigo="{{ v.codigo_interno }}">
+        <div class="vivienda-info">
+          <span class="vivienda-codigo">{{ v.codigo_interno }}</span>
+          <span class="vivienda-jefe">{{ v.jefe or 'Sin jefe' }}{% if v.jefe_dni %} · DNI {{ v.jefe_dni }}{% endif %}</span>
+          {% if v.referencia_fisica %}
+            <span class="vivienda-ref">{{ v.referencia_fisica[:90] }}{% if v.referencia_fisica|length > 90 %}…{% endif %}</span>
+          {% endif %}
+        </div>
+        <div class="vivienda-deuda">
+          {% if v.meses_deuda and v.meses_deuda > 0 %}
+            <span class="deuda-badge">
+              {{ v.meses_deuda }} mes(es) · S/ {{ '%.2f' | format(v.deuda_total | float) }}
+            </span>
+          {% else %}
+            <span class="deuda-badge deuda-badge--ok">Al día</span>
+          {% endif %}
+        </div>
+        <div class="vivienda-acciones">
+          {% if v.meses_deuda and v.meses_deuda > 0 and puede_cobrar %}
+            <button class="btn btn--sm btn--primary" type="button"
+                    data-codigo="{{ v.codigo_interno }}"
+                    data-jefe="{{ v.jefe or 'Sin jefe' }}"
+                    onclick="window.cobranzaAbrirCobrar(this.dataset.codigo, this.dataset.jefe)">
+              Cobrar
+            </button>
+          {% endif %}
+          <a href="/app/padron/{{ v.codigo_interno }}" class="btn btn--sm btn--ghost">Ver</a>
+        </div>
+      </div>
+    {% else %}
+      <p class="muted">No se encontraron viviendas con esos filtros.</p>
+    {% endfor %}
+  </div>
+</section>
+
+{% include 'tenant/cobranza/_modal_cobrar.html' %}
+
+<script>
+  (function () {
+    'use strict';
+    var CSRF = "{{ ctx.csrf_token }}";
+
+    function escapeHtml(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    window.cobranzaAbrirCajaRapido = async function () {
+      var ok = await window.appModal.confirm(
+        'Abrir caja',
+        '¿Abrir caja con monto inicial S/ 0.00?',
+        { okText: 'Si, abrir', cancelText: 'Cancelar' }
+      );
+      if (ok !== true) return;
+      var body = new URLSearchParams({ _csrf: CSRF });
+      var resp = await fetch('/app/cobranza/abrir-caja-rapido', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        credentials: 'same-origin',
+        body: body.toString(),
+      });
+      var data = await resp.json().catch(function () { return {}; });
+      if (resp.ok && data.ok) {
+        window.location.reload();
+      } else {
+        await window.appModal.alert('No se pudo abrir caja', data.message || 'Error');
+      }
+    };
+
+    var _cobroActual = { codigo: null, jefe: null, cuotas: [] };
+
+    window.cobranzaAbrirCobrar = async function (codigo, jefe) {
+      _cobroActual = { codigo: codigo, jefe: jefe, cuotas: [] };
+      var lista = document.getElementById('cobrar-cuotas-lista');
+      lista.innerHTML = '<p class="muted small">Cargando cuotas…</p>';
+      document.getElementById('cobrar-titulo').textContent =
+        'Cobrar a ' + jefe + ' (' + codigo + ')';
+      document.getElementById('cobrar-total').textContent = '0.00';
+      document.getElementById('numero-recibo').value = '';
+      document.getElementById('observacion-cobro').value = '';
+      document.getElementById('modal-cobrar').classList.remove('hidden');
+
+      try {
+        var resp = await fetch('/app/cobranza/vivienda/' + encodeURIComponent(codigo) + '/cuotas',
+          { credentials: 'same-origin' });
+        var data = await resp.json();
+        _cobroActual.cuotas = data.cuotas || [];
+
+        if (_cobroActual.cuotas.length === 0) {
+          lista.innerHTML = '<p class="muted">Esta vivienda no tiene cuotas pendientes.</p>';
+          return;
+        }
+        lista.innerHTML = _cobroActual.cuotas.map(function (c) {
+          return '<label class="cuota-check">' +
+            '<input type="checkbox" value="' + c.id + '" data-monto="' + c.saldo_pendiente +
+            '" onchange="window.cobranzaRecalcularTotal()">' +
+            '<span class="cuota-periodo">' + escapeHtml(c.periodo) + '</span>' +
+            '<span class="cuota-recibo muted">' + escapeHtml(c.numero_recibo || '') + '</span>' +
+            '<span class="cuota-monto">S/ ' + c.saldo_pendiente.toFixed(2) + '</span>' +
+            '</label>';
+        }).join('');
+      } catch (e) {
+        lista.innerHTML = '<p class="muted">Error cargando cuotas: ' + escapeHtml(e.message || e) + '</p>';
+      }
+    };
+
+    window.cobranzaRecalcularTotal = function () {
+      var total = 0;
+      document.querySelectorAll('#cobrar-cuotas-lista input:checked').forEach(function (cb) {
+        total += parseFloat(cb.dataset.monto) || 0;
+      });
+      document.getElementById('cobrar-total').textContent = total.toFixed(2);
+    };
+
+    window.cobranzaCerrarModal = function () {
+      document.getElementById('modal-cobrar').classList.add('hidden');
+    };
+
+    async function postCobro(extraFlag) {
+      var seleccionadas = [];
+      var total = 0;
+      document.querySelectorAll('#cobrar-cuotas-lista input:checked').forEach(function (cb) {
+        seleccionadas.push(cb.value);
+        total += parseFloat(cb.dataset.monto) || 0;
+      });
+      if (seleccionadas.length === 0) {
+        await window.appModal.alert('Atención', 'Selecciona al menos un mes a cobrar.');
+        return null;
+      }
+      var numero = (document.getElementById('numero-recibo').value || '').trim();
+      var obs = (document.getElementById('observacion-cobro').value || '').trim();
+
+      var body = new URLSearchParams({
+        codigo_interno: _cobroActual.codigo,
+        cuota_ids: seleccionadas.join(','),
+        metodo: 'efectivo',
+        referencia_externa: numero,
+        observacion: obs,
+        abrir_caja_si_falta: extraFlag ? '1' : '0',
+        _csrf: CSRF,
+      });
+      var resp = await fetch('/app/cobranza/registrar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        credentials: 'same-origin',
+        body: body.toString(),
+      });
+      return { resp: resp, data: await resp.json().catch(function () { return {}; }), total: total };
+    }
+
+    window.cobranzaConfirmar = async function () {
+      // Modo offline → reusa cobrar_offline.js para encolar
+      var mode = (window.ElectroConnectionMode && window.ElectroConnectionMode.get)
+        ? window.ElectroConnectionMode.get() : 'auto';
+      var isOnline = (window.ElectroConnectionMode && window.ElectroConnectionMode.isEffectivelyOnline)
+        ? window.ElectroConnectionMode.isEffectivelyOnline() : navigator.onLine;
+      if (mode === 'offline' || !isOnline) {
+        await encolarOffline();
+        return;
+      }
+
+      var r = await postCobro(false);
+      if (!r) return;
+      var data = r.data;
+      if (r.resp.ok && data.ok) {
+        window.cobranzaCerrarModal();
+        await window.appModal.alert(
+          'Cobro registrado',
+          'Se cobró S/ ' + r.total.toFixed(2) + ' correctamente.'
+        );
+        window.location.reload();
+        return;
+      }
+      if (data.error === 'sin_caja') {
+        var ok = await window.appModal.confirm(
+          'No tienes caja abierta',
+          '¿Abrir caja con S/ 0.00 ahora y registrar el cobro?',
+          { okText: 'Sí, abrir y cobrar', cancelText: 'Cancelar' }
+        );
+        if (ok !== true) return;
+        var r2 = await postCobro(true);
+        if (r2 && r2.resp.ok && r2.data.ok) {
+          window.cobranzaCerrarModal();
+          await window.appModal.alert(
+            'Cobro registrado',
+            'Caja abierta y cobro de S/ ' + r2.total.toFixed(2) + ' registrado.'
+          );
+          window.location.reload();
+          return;
+        }
+        await window.appModal.alert('Error', (r2 && r2.data && r2.data.message) || 'No se pudo registrar el cobro');
+        return;
+      }
+      await window.appModal.alert('Error', data.message || 'No se pudo registrar el cobro');
+    };
+
+    async function encolarOffline() {
+      if (!window.ElectroDB || !window.electroUUID) {
+        await window.appModal.alert('Error', 'Modo offline no disponible en este dispositivo.');
+        return;
+      }
+      var seleccionadas = [];
+      var total = 0;
+      document.querySelectorAll('#cobrar-cuotas-lista input:checked').forEach(function (cb) {
+        seleccionadas.push(parseInt(cb.value, 10));
+        total += parseFloat(cb.dataset.monto) || 0;
+      });
+      if (seleccionadas.length === 0) {
+        await window.appModal.alert('Atención', 'Selecciona al menos un mes a cobrar.');
+        return;
+      }
+      var numero = (document.getElementById('numero-recibo').value || '').trim();
+      var obs = (document.getElementById('observacion-cobro').value || '').trim();
+      var payload = {
+        uuid_pago: window.electroUUID(),
+        codigo_interno: _cobroActual.codigo,
+        cuota_ids: seleccionadas,
+        monto_total: total,
+        metodo_pago: 'efectivo',
+        referencia_externa: numero || null,
+        observaciones: obs || null,
+        capturado_at: new Date().toISOString(),
+      };
+      await window.ElectroDB.put('sync_queue', {
+        tipo: 'pago', payload: payload, status: 'pending',
+        created_at: new Date().toISOString(), attempts: 0, last_error: null,
+      });
+      window.cobranzaCerrarModal();
+      await window.appModal.alert(
+        'Cobro guardado localmente',
+        'S/ ' + total.toFixed(2) + ' quedo en cola.\n\n' +
+        'Se enviara al servidor cuando sincronices. La caja asignada sera la que ' +
+        'tengas abierta en ese momento.',
+        { okText: 'Entendido' }
+      );
+      window.location.reload();
+    }
+  })();
+</script>
+{% endblock %}
