@@ -1,16 +1,57 @@
 {% extends 'base.html' %}
-{% block title %}Inicio · municipio{% endblock %}
+{% block title %}Inicio · {{ branding.nombre_corto or 'electro' }}{% endblock %}
 {% block content %}
-<section class="page">
-  <h1 class="page-title">Hola, {{ ctx.user.nombre }}</h1>
-  <p class="page-subtitle">
-    Bienvenido al sistema.
-    {% if ctx.perfil_codigo %}Perfil: <strong>{{ ctx.perfil_codigo }}</strong>.{% endif %}
+<section class="page bienvenida">
+  {% if branding and branding.logo_url %}
+    <img src="{{ branding.logo_url }}" alt="{{ branding.nombre_municipalidad or 'Logo' }}"
+         class="bienvenida-logo-img">
+  {% else %}
+    <div class="bienvenida-logo-placeholder" aria-hidden="true">
+      <svg width="80" height="80" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M13 2L4.5 14h6L9 22l8.5-12h-6L13 2z"/>
+      </svg>
+    </div>
+  {% endif %}
+
+  <h1 class="bienvenida-titulo">
+    {{ branding.nombre_municipalidad or 'electro' }}
+  </h1>
+  <p class="bienvenida-subtitulo">
+    Sistema de cobro de energía eléctrica
   </p>
 
-  <div class="empty-state">
-    <p>Los módulos de padrón, cobranza y configuración se habilitarán en la siguiente entrega (zClaude-02).</p>
-    <p class="muted">Por ahora, el menú lateral lista qué tendrás disponible según tus permisos.</p>
+  <p class="bienvenida-saludo muted">
+    Hola, <strong>{{ ctx.user.nombre }}</strong>{% if ctx.perfil_codigo %} · {{ ctx.perfil_codigo }}{% endif %}.
+  </p>
+
+  <div class="bienvenida-accesos">
+    {% if ctx.user | puede('cobranza', 'recibos', 'ver') %}
+      <a href="/app/cobranza/" class="acceso-card acceso-card--primary">
+        <span class="acceso-titulo">Cobranza</span>
+        <span class="acceso-desc">Cobrar a viviendas con deuda</span>
+      </a>
+    {% endif %}
+    {% if ctx.user | puede('padron', 'viviendas', 'ver') %}
+      <a href="/app/padron/" class="acceso-card">
+        <span class="acceso-titulo">Padrón</span>
+        <span class="acceso-desc">Viviendas y moradores</span>
+      </a>
+    {% endif %}
+    {% if (ctx.user | puede('reportes', 'padron', 'ver'))
+        or (ctx.user | puede('reportes', 'recaudacion', 'ver'))
+        or (ctx.user | puede('reportes', 'cobranza', 'ver'))
+        or (ctx.user | puede('reportes', 'dashboard', 'ver')) %}
+      <a href="/app/reportes/" class="acceso-card">
+        <span class="acceso-titulo">Reportes</span>
+        <span class="acceso-desc">Padrón, recaudación, cobranza</span>
+      </a>
+    {% endif %}
+    {% if ctx.user | puede('caja', 'diaria', 'abrir') %}
+      <a href="/app/caja/" class="acceso-card">
+        <span class="acceso-titulo">Caja diaria</span>
+        <span class="acceso-desc">Apertura y cierre</span>
+      </a>
+    {% endif %}
   </div>
 </section>
 {% endblock %}
