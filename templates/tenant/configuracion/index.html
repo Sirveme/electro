@@ -30,5 +30,48 @@
       <button type="submit" class="btn btn--primary">Guardar configuración</button>
     </div>
   </form>
+
+  <h2 style="margin-top:32px">Branding del municipio</h2>
+  <p class="page-subtitle">
+    Logo y nombre que aparecen en el topbar de la aplicación. Cambios visibles
+    al recargar la página.
+  </p>
+
+  <form method="post" action="/app/configuracion/logo" class="form"
+        enctype="multipart/form-data" hx-boost="false">
+    {% include 'components/csrf_input.html' %}
+
+    {% if branding_actual.logo_url %}
+      <div class="form-field">
+        <span class="form-label">Logo actual</span>
+        <img src="{{ branding_actual.logo_url }}" alt="Logo actual"
+             style="max-height:80px; max-width:200px; background:white; padding:4px; border-radius:4px;">
+      </div>
+    {% endif %}
+
+    <label class="form-field">
+      <span class="form-label">Subir logo nuevo (PNG, JPG, SVG o WebP — máx 2 MB)</span>
+      <input type="file" name="logo" accept="image/png,image/jpeg,image/svg+xml,image/webp">
+      <small class="form-hint">Dejar vacío si no quieres cambiar el logo actual.</small>
+    </label>
+
+    <label class="form-field">
+      <span class="form-label">Nombre completo de la municipalidad</span>
+      <input type="text" name="nombre_municipalidad" maxlength="120"
+             value="{{ branding_actual.nombre_municipalidad or '' }}"
+             placeholder="Ej. Municipalidad Distrital de Manseriche">
+    </label>
+
+    <label class="form-field">
+      <span class="form-label">Nombre corto (para el topbar)</span>
+      <input type="text" name="nombre_corto" maxlength="40"
+             value="{{ branding_actual.nombre_corto or '' }}"
+             placeholder="Ej. Manseriche">
+    </label>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn--primary">Guardar branding</button>
+    </div>
+  </form>
 </section>
 {% endblock %}
