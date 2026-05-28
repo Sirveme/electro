@@ -25,24 +25,39 @@
                 _="on click add .hidden to #modal-reactivar">
           Cancelar
         </button>
-        <button type="submit" class="btn btn--primary"
-                _="on click
-                    halt the event
-                    set motivo to #motivo-reactivar.value
-                    if motivo.trim().length < 10 then
-                      call appModal.alert('Atención',
-                        'El motivo debe tener al menos 10 caracteres.')
-                      exit
-                    end
-                    call appModal.confirm(
-                      'Confirmar reactivación',
-                      '¿Reactivar la vivienda {{ vivienda.codigo_interno }}?',
-                      {okText:'Sí, reactivar', cancelText:'No'}
-                    )
-                    if it then submit the closest <form/> end">
+        <button type="submit" class="btn btn--primary" id="btn-confirmar-reactivar">
           Reactivar vivienda
         </button>
       </div>
     </form>
   </div>
 </div>
+
+<script>
+  (function () {
+    var codigo = "{{ vivienda.codigo_interno }}";
+    var btn = document.getElementById('btn-confirmar-reactivar');
+    if (!btn) return;
+
+    btn.addEventListener('click', async function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      var motivo = document.getElementById('motivo-reactivar').value;
+      if (motivo.trim().length < 10) {
+        await window.appModal.alert(
+          'Atención',
+          'El motivo debe tener al menos 10 caracteres.'
+        );
+        return;
+      }
+
+      var ok = await window.appModal.confirm(
+        'Confirmar reactivación',
+        '¿Reactivar la vivienda ' + codigo + '?',
+        { okText: 'Sí, reactivar', cancelText: 'No' }
+      );
+      if (ok === true) btn.closest('form').submit();
+    });
+  })();
+</script>

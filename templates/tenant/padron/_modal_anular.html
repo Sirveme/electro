@@ -34,31 +34,46 @@
                 _="on click add .hidden to #modal-anular">
           Cancelar
         </button>
-        <button type="submit" class="btn btn--danger"
-                _="on click
-                    halt the event
-                    set motivo to #motivo-anular.value
-                    if motivo == '' then
-                      call appModal.alert('Atención', 'Selecciona un motivo de anulación.')
-                      exit
-                    end
-                    if motivo == 'otro' then
-                      set obs to #obs-anular.value
-                      if obs.trim().length < 10 then
-                        call appModal.alert('Atención',
-                          'Si el motivo es Otro, la observación debe tener al menos 10 caracteres.')
-                        exit
-                      end
-                    end
-                    call appModal.confirm(
-                      'Confirmar anulación',
-                      'Vas a anular la vivienda {{ vivienda.codigo_interno }}. ¿Continuar?',
-                      {danger:true, okText:'Sí, anular', cancelText:'No'}
-                    )
-                    if it then submit the closest <form/> end">
+        <button type="submit" class="btn btn--danger" id="btn-confirmar-anular">
           Anular vivienda
         </button>
       </div>
     </form>
   </div>
 </div>
+
+<script>
+  (function () {
+    var codigo = "{{ vivienda.codigo_interno }}";
+    var btn = document.getElementById('btn-confirmar-anular');
+    if (!btn) return;
+
+    btn.addEventListener('click', async function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      var motivo = document.getElementById('motivo-anular').value;
+      if (!motivo) {
+        await window.appModal.alert('Atención', 'Selecciona un motivo de anulación.');
+        return;
+      }
+      if (motivo === 'otro') {
+        var obs = document.getElementById('obs-anular').value;
+        if (obs.trim().length < 10) {
+          await window.appModal.alert(
+            'Atención',
+            'Si el motivo es Otro, la observación debe tener al menos 10 caracteres.'
+          );
+          return;
+        }
+      }
+
+      var ok = await window.appModal.confirm(
+        'Confirmar anulación',
+        'Vas a anular la vivienda ' + codigo + '. ¿Continuar?',
+        { danger: true, okText: 'Sí, anular', cancelText: 'No' }
+      );
+      if (ok === true) btn.closest('form').submit();
+    });
+  })();
+</script>

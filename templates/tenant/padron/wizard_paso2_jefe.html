@@ -50,7 +50,9 @@
     <label class="form-field">
       <span class="form-label">DNI</span>
       <input type="text" name="dni" id="jefe-dni" required pattern="\d{8}" maxlength="8" inputmode="numeric"
-        value="{{ datos.paso2.dni if datos.paso2 else '' }}">
+        value="{{ datos.paso2.dni if datos.paso2 else '' }}"
+        oninput="window.validarDniDuplicado(this)">
+      <small id="dni-warning" class="dni-warning hidden" role="alert"></small>
     </label>
 
     <label class="form-field">
@@ -154,6 +156,74 @@
     window.appModal.alert('DNI leído',
       'Revisa los datos antes de continuar y corrige si es necesario.',
       {tipo:'success'});
+  };
+
+  // === Validacion temprana de DNI duplicado ===
+  // Apenas el usuario completa 8 digitos, busca primero en IndexedDB local
+  // (viviendas offline pendientes de sync) y luego en el servidor. Si hay un
+  // jefe activo con ese DNI, muestra warning inline — no bloquea el form, solo
+  // avisa antes de que el usuario llegue al paso 4.
+  window.validarDniDuplicado = async function (input) {
+    var dni = (input.value || '').trim();
+    var warning = document.getElementById('dni-warning');
+    if (!warning) return;
+    warning.classList.add('hidden');
+    warning.textContent = '';
+    if (dni.length !== 8 || !/^\d{8}$/.test(dni)) return;
+
+    // 1) Local: viviendas offline ya empadronadas en este dispositivo
+    if (window.ElectroDB) {
+      try {
+        var locales = await window.ElectroDB.getAll('viviendas');
+        var hit = null;
+        for (var i = 0; i < locales.length; i++) {
+          var v = locales[i];
+          if (!v._offline) continue;
+          // Buscar en sync_queue por el payload, ya que el espejo no replica moradores.
+          // Fallback rapido: comparar contra cualquier morador en payload pendiente.
+        }
+        var queue = await window.ElectroDB.getAll('sync_queue');
+        for (var k = 0; k < queue.length; k++) {
+          var it = queue[k];
+          if (it.tipo !== 'empadronar' || !it.payload || !it.payload.moradores) continue;
+          var jefeLocal = it.payload.moradores.find(function (m) {
+            return m.es_jefe_familia && m.dni === dni;
+          });
+          if (jefeLocal) {
+            hit = it.payload.uuid_cliente
+              ? 'V-OFFLINE-' + it.payload.uuid_cliente.slice(0, 8)
+              : 'pendiente';
+            break;
+          }
+        }
+        if (hit) {
+          warning.textContent = 'El DNI ' + dni + ' ya es jefe de la vivienda local ' +
+            hit + ' pendiente de sincronizar.';
+          warning.classList.remove('hidden');
+          return;
+        }
+      } catch (e) {
+        console.log('[DNI-CHECK] Local fallo:', e);
+      }
+    }
+
+    // 2) Servidor (best-effort, si hay red)
+    if (navigator.onLine) {
+      try {
+        var resp = await fetch('/app/api/dni-check?dni=' + encodeURIComponent(dni),
+          { credentials: 'same-origin' });
+        if (resp.ok) {
+          var data = await resp.json();
+          if (data && data.existe) {
+            warning.textContent = 'El DNI ' + dni + ' ya es jefe de la vivienda ' +
+              data.codigo_interno + '.';
+            warning.classList.remove('hidden');
+          }
+        }
+      } catch (e) {
+        console.log('[DNI-CHECK] Servidor fallo:', e);
+      }
+    }
   };
 
   // === Fallback: foto del frente → Vision ===

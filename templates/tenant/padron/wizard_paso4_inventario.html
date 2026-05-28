@@ -56,7 +56,13 @@
     {% endfor %}
   </div>
 
-  <form method="post" action="/app/padron/nuevo/paso4" class="form" enctype="multipart/form-data" id="form-final">
+  {# hx-boost="false" desactiva el boost de HTMX (heredado del <body>) en este
+     form especifico: HTMX intercepta el submit ANTES que cualquier
+     addEventListener('submit'), asi que la unica forma confiable de ganarle es
+     usar `onsubmit=` inline + apagar el boost. #}
+  <form method="post" action="/app/padron/nuevo/paso4" class="form" enctype="multipart/form-data"
+        id="form-final" hx-boost="false" data-no-htmx="true"
+        onsubmit="return window.manejarSubmitWizard(event, this)">
     {% include 'components/csrf_input.html' %}
     <input type="hidden" name="inventario_json" id="inventario-json" value="[]">
 
@@ -69,8 +75,7 @@
 
     <div class="form-actions">
       <a href="/app/padron/nuevo/paso3" class="btn btn--ghost">← Atrás</a>
-      <button type="submit" class="btn btn--primary"
-        _="on submit call window.prepararPayload()">
+      <button type="submit" class="btn btn--primary">
         Finalizar empadronamiento
       </button>
     </div>
@@ -125,170 +130,188 @@
   // Estimación inicial
   document.addEventListener('DOMContentLoaded', window.recomputarEstimacion);
 
-  // === Interceptor offline ===
-  // Si el modo de conexion es "Forzar sin conexion" (o estamos en Auto pero
-  // sin conectividad real), guardamos el empadronamiento en IndexedDB y NO
-  // hacemos el submit normal al servidor. La cola se sincroniza despues.
-  (function () {
-    function leerWizardState() {
-      try {
-        var el = document.getElementById('wizard-state');
-        return el ? JSON.parse(el.textContent || '{}') : {};
-      } catch (e) {
-        console.warn('No pude parsear wizard-state:', e);
-        return {};
-      }
-    }
+  // === Interceptor offline del wizard ===
+  // Esquema: `onsubmit=` inline en el <form>. Se eligio sobre addEventListener
+  // porque:
+  //   1) Corre ANTES que los listeners agregados con addEventListener.
+  //   2) Si retorna false, el submit se cancela aunque ya haya algun otro
+  //      listener encolado.
+  //   3) `hx-boost="false"` en el form complementa: HTMX ni siquiera intenta
+  //      tomar control sobre este form.
 
-    function isOfflineSubmit() {
-      var cm = window.ElectroConnectionMode;
-      if (!cm) return false;
-      var mode = cm.get ? cm.get() : 'auto';
-      if (mode === 'offline') return true;
-      if (mode === 'online') return false;
-      // auto → sigue navigator.onLine
-      return !navigator.onLine;
+  function _leerWizardState() {
+    try {
+      var el = document.getElementById('wizard-state');
+      return el ? JSON.parse(el.textContent || '{}') : {};
+    } catch (e) {
+      console.warn('[WIZARD] No pude parsear wizard-state:', e);
+      return {};
     }
+  }
 
-    async function fileToBase64(file) {
-      if (window.electroFileToBase64) return window.electroFileToBase64(file);
-      return new Promise(function (resolve, reject) {
-        var fr = new FileReader();
-        fr.onload = function (e) {
-          var r = e.target.result || '';
-          var c = r.indexOf(',');
-          resolve(c >= 0 ? r.slice(c + 1) : r);
-        };
-        fr.onerror = reject;
-        fr.readAsDataURL(file);
-      });
-    }
+  function _isOfflineSubmit() {
+    var cm = window.ElectroConnectionMode;
+    if (!cm) return false;
+    var mode = cm.get ? cm.get() : 'auto';
+    if (mode === 'offline') return true;
+    if (mode === 'online') return false;
+    return !navigator.onLine;
+  }
 
-    function buildInventarioFromInputs() {
-      var items = [];
-      document.querySelectorAll('.inv-cantidad').forEach(function (inp) {
-        var cant = parseInt(inp.value) || 0;
-        if (cant > 0) {
-          items.push({
-            origen: inp.dataset.origen,
-            codigo: inp.dataset.codigo,
-            cantidad: cant,
-            tarifa_snapshot: parseFloat(inp.dataset.tarifa) || 0,
-          });
-        }
-      });
-      return items;
-    }
+  function _fileToBase64(file) {
+    if (window.electroFileToBase64) return window.electroFileToBase64(file);
+    return new Promise(function (resolve, reject) {
+      var fr = new FileReader();
+      fr.onload = function (e) {
+        var r = e.target.result || '';
+        var c = r.indexOf(',');
+        resolve(c >= 0 ? r.slice(c + 1) : r);
+      };
+      fr.onerror = reject;
+      fr.readAsDataURL(file);
+    });
+  }
 
-    function buildMoradoresFromState(state) {
-      var datos = state || {};
-      var p2 = datos.paso2 || {};
-      var p3 = datos.paso3;
-      var moradores = [];
-      if (p2.dni) {
-        moradores.push({
-          dni: p2.dni,
-          nombre_completo: p2.nombre_completo,
-          fecha_nacimiento: p2.fecha_nacimiento || null,
-          sexo: p2.sexo || null,
-          telefono: p2.telefono || null,
-          es_jefe_familia: true,
-          es_responsable_pago: true,
-          acceso_portal: !!p2.acceso_portal,
-          uuid_cliente: window.electroUUID ? window.electroUUID() : null,
+  function _buildInventarioFromInputs() {
+    var items = [];
+    document.querySelectorAll('.inv-cantidad').forEach(function (inp) {
+      var cant = parseInt(inp.value) || 0;
+      if (cant > 0) {
+        items.push({
+          origen: inp.dataset.origen,
+          codigo: inp.dataset.codigo,
+          cantidad: cant,
+          tarifa_snapshot: parseFloat(inp.dataset.tarifa) || 0,
         });
       }
-      if (p3 && p3.dni) {
-        moradores.push({
-          dni: p3.dni,
-          nombre_completo: p3.nombre_completo,
-          fecha_nacimiento: p3.fecha_nacimiento || null,
-          sexo: p3.sexo || null,
-          telefono: p3.telefono || null,
-          es_jefe_familia: false,
-          es_responsable_pago: false,
-          acceso_portal: false,
-          uuid_cliente: window.electroUUID ? window.electroUUID() : null,
-        });
-      }
-      return moradores;
+    });
+    return items;
+  }
+
+  function _buildMoradoresFromState(state) {
+    var datos = state || {};
+    var p2 = datos.paso2 || {};
+    var p3 = datos.paso3;
+    var moradores = [];
+    if (p2.dni) {
+      moradores.push({
+        dni: p2.dni,
+        nombre_completo: p2.nombre_completo,
+        fecha_nacimiento: p2.fecha_nacimiento || null,
+        sexo: p2.sexo || null,
+        telefono: p2.telefono || null,
+        es_jefe_familia: true,
+        es_responsable_pago: true,
+        acceso_portal: !!p2.acceso_portal,
+        uuid_cliente: window.electroUUID ? window.electroUUID() : null,
+      });
+    }
+    if (p3 && p3.dni) {
+      moradores.push({
+        dni: p3.dni,
+        nombre_completo: p3.nombre_completo,
+        fecha_nacimiento: p3.fecha_nacimiento || null,
+        sexo: p3.sexo || null,
+        telefono: p3.telefono || null,
+        es_jefe_familia: false,
+        es_responsable_pago: false,
+        acceso_portal: false,
+        uuid_cliente: window.electroUUID ? window.electroUUID() : null,
+      });
+    }
+    return moradores;
+  }
+
+  window.guardarEmpadronamientoOffline = async function (form) {
+    if (!window.ElectroDB) throw new Error('IndexedDB no disponible');
+    if (!window.electroEncolarEmpadronamiento) {
+      throw new Error('electroEncolarEmpadronamiento no disponible');
     }
 
-    var form = document.getElementById('form-final');
-    if (!form) return;
+    var state = _leerWizardState();
+    var p1 = state.paso1 || {};
+    var fotoInput = document.getElementById('foto-input');
+    var file = fotoInput && fotoInput.files && fotoInput.files[0];
+    if (!file) {
+      await window.appModal.alert('Falta la foto', 'La foto de la fachada es obligatoria.');
+      return;
+    }
 
-    // Si IndexedDB esta vacia y hay red, dispara bootstrap antes del submit.
-    // Util si el usuario entro al wizard sin haber sincronizado nunca.
-    document.addEventListener('DOMContentLoaded', async function () {
-      try {
-        if (!window.ElectroDB) return;
-        var comunidades = await window.ElectroDB.getAll('comunidades');
-        if (comunidades.length === 0 && navigator.onLine && window.electroBootstrap) {
-          console.log('[WIZARD] IndexedDB vacia, forzando bootstrap...');
-          await window.electroBootstrap();
-        }
-      } catch (e) {
-        console.warn('[WIZARD] No se pudo asegurar bootstrap:', e);
-      }
+    var fotoBase64 = await _fileToBase64(file);
+    var payload = {
+      uuid_cliente: window.electroUUID(),
+      comunidad_id: p1.comunidad_id,
+      referente_id: p1.referente_id || null,
+      fuente_validacion: p1.fuente_validacion || null,
+      referencia_fisica: p1.referencia_fisica || '',
+      direccion_textual: p1.direccion_textual || null,
+      gps_lat: p1.gps_lat || null,
+      gps_lng: p1.gps_lng || null,
+      gps_precision_metros: p1.gps_precision || null,
+      foto_fachada_base64: fotoBase64,
+      foto_dni_base64: null,
+      moradores: _buildMoradoresFromState(state),
+      inventario: _buildInventarioFromInputs(),
+      capturado_at: new Date().toISOString(),
+    };
+
+    var result = await window.electroEncolarEmpadronamiento(payload);
+    await window.appModal.alert(
+      'Vivienda guardada localmente',
+      'La vivienda quedo guardada en este dispositivo. Se enviara al servidor ' +
+      'cuando vuelvas a tener conexion.\n\nCodigo provisional: V-OFFLINE-' +
+      result.uuid_cliente.slice(0, 8),
+      { okText: 'Entendido' }
+    );
+    window.location.href = '/app/padron/';
+  };
+
+  window.manejarSubmitWizard = function (event, form) {
+    // SIEMPRE preparamos el inventario_json (lo necesita el POST online y no
+    // hace daño en offline).
+    try { window.prepararPayload(); } catch (e) { /* ignorar */ }
+
+    var mode = (window.ElectroConnectionMode && window.ElectroConnectionMode.get)
+      ? window.ElectroConnectionMode.get() : 'auto';
+    var offline = _isOfflineSubmit();
+    console.log('[WIZARD] onsubmit interceptado. mode=', mode, 'offline=', offline);
+
+    if (!offline) {
+      console.log('[WIZARD] Submit online normal');
+      return true;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    if (typeof event.stopImmediatePropagation === 'function') {
+      event.stopImmediatePropagation();
+    }
+    console.log('[WIZARD] BLOQUEANDO submit al servidor (modo offline)');
+
+    // onsubmit no espera promesas: corremos el guardado async sin await.
+    window.guardarEmpadronamientoOffline(form).catch(function (err) {
+      console.error('[WIZARD] Error al guardar offline:', err);
+      window.appModal.alert(
+        'Error',
+        'No se pudo guardar localmente: ' + (err.message || err)
+      );
     });
+    return false;
+  };
 
-    form.addEventListener('submit', async function (e) {
-      var mode = (window.ElectroConnectionMode && window.ElectroConnectionMode.get)
-        ? window.ElectroConnectionMode.get() : 'auto';
-      var offline = isOfflineSubmit();
-      console.log('[WIZARD] Submit detectado, mode=', mode, 'offline=', offline);
-
-      if (!offline) {
-        console.log('[WIZARD] Submit online normal');
-        return;
+  // Bootstrap on-mount: si IndexedDB esta vacia y hay red, hidrata antes de
+  // que el usuario llegue a finalizar.
+  document.addEventListener('DOMContentLoaded', async function () {
+    try {
+      if (!window.ElectroDB) return;
+      var comunidades = await window.ElectroDB.getAll('comunidades');
+      if (comunidades.length === 0 && navigator.onLine && window.electroBootstrap) {
+        console.log('[WIZARD] IndexedDB vacia, forzando bootstrap...');
+        await window.electroBootstrap();
       }
-      if (!window.electroEncolarEmpadronamiento) {
-        console.warn('[WIZARD] electroEncolarEmpadronamiento no disponible; submit normal');
-        return;
-      }
-      console.log('[WIZARD] Interceptando submit, guardando offline...');
-
-      e.preventDefault();
-      var state = leerWizardState();
-      var p1 = state.paso1 || {};
-      var fotoInput = document.getElementById('foto-input');
-      var file = fotoInput && fotoInput.files && fotoInput.files[0];
-      if (!file) {
-        await window.appModal.alert('Falta la foto', 'La foto de la fachada es obligatoria.');
-        return;
-      }
-
-      try {
-        var fotoBase64 = await fileToBase64(file);
-        var payload = {
-          uuid_cliente: window.electroUUID(),
-          comunidad_id: p1.comunidad_id,
-          referente_id: p1.referente_id || null,
-          fuente_validacion: p1.fuente_validacion || null,
-          referencia_fisica: p1.referencia_fisica || '',
-          direccion_textual: p1.direccion_textual || null,
-          gps_lat: p1.gps_lat || null,
-          gps_lng: p1.gps_lng || null,
-          gps_precision_metros: p1.gps_precision || null,
-          foto_fachada_base64: fotoBase64,
-          foto_dni_base64: null,
-          moradores: buildMoradoresFromState(state),
-          inventario: buildInventarioFromInputs(),
-          capturado_at: new Date().toISOString(),
-        };
-
-        var result = await window.electroEncolarEmpadronamiento(payload);
-        await window.appModal.alert(
-          'Empadronamiento guardado localmente',
-          'La vivienda quedo guardada en este dispositivo. Se enviara al servidor ' +
-          'cuando vuelvas a tener conexion. (uuid ' + result.uuid_cliente.slice(0, 8) + '…)'
-        );
-        window.location.href = '/app/padron/';
-      } catch (err) {
-        console.error(err);
-        await window.appModal.alert('Error', 'No se pudo guardar localmente: ' + (err.message || err));
-      }
-    });
-  })();
+    } catch (e) {
+      console.warn('[WIZARD] No se pudo asegurar bootstrap:', e);
+    }
+  });
 </script>
 {% endblock %}

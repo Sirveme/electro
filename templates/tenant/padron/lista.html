@@ -2,6 +2,30 @@
 {% block title %}Padrón{% endblock %}
 {% block content %}
 <section class="page">
+  <div id="pendientes-banner" class="pendientes-banner hidden">
+    <span>
+      Tienes <strong id="pendientes-count">0</strong> empadronamiento(s) pendientes de sincronizar.
+    </span>
+    <a href="/app/sync" class="pendientes-link">Ver cola →</a>
+  </div>
+
+  <script>
+    (async function () {
+      if (!window.ElectroDB) return;
+      try {
+        await window.ElectroDB.open();
+        var items = await window.ElectroDB.getAll('sync_queue');
+        var emp = items.filter(function (i) { return i.tipo === 'empadronar'; });
+        if (emp.length > 0) {
+          document.getElementById('pendientes-count').textContent = emp.length;
+          document.getElementById('pendientes-banner').classList.remove('hidden');
+        }
+      } catch (e) {
+        console.warn('[PADRON] No se pudo leer pendientes:', e);
+      }
+    })();
+  </script>
+
   <div class="page-header">
     <h1 class="page-title">Padrón ({{ total }})</h1>
     {% if ctx.user | puede('padron', 'viviendas', 'crear') %}
