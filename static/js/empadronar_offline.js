@@ -105,6 +105,16 @@
   }
   window.electroBootstrap = bootstrap;
 
+  // Contador local persistente: V-LOCAL-001, V-LOCAL-002, ...
+  // El contador NO se decrementa al sincronizar (evita colisiones si el usuario
+  // empadrona V-LOCAL-002 antes de que V-LOCAL-001 termine de sincronizar).
+  async function siguienteContadorLocal() {
+    var meta = await window.ElectroDB.get('meta', 'local_counter');
+    var next = ((meta && meta.value) || 0) + 1;
+    await window.ElectroDB.put('meta', { key: 'local_counter', value: next });
+    return next;
+  }
+
   // === Encolar empadronamiento offline ===
   async function encolarEmpadronamiento(payload) {
     await ready();
@@ -121,9 +131,12 @@
     };
     const id = await db.put('sync_queue', item);
 
+    var contador = await siguienteContadorLocal();
+    var codigoLocal = 'V-LOCAL-' + String(contador).padStart(3, '0');
+
     // Espejo en `viviendas` para que el padron muestre la vivienda offline.
     await db.put('viviendas', {
-      codigo_interno: 'V-OFFLINE-' + payload.uuid_cliente.slice(0, 8),
+      codigo_interno: codigoLocal,
       uuid_cliente: payload.uuid_cliente,
       comunidad_id: payload.comunidad_id,
       referencia_fisica: payload.referencia_fisica,
@@ -134,10 +147,21 @@
       _sync_id: id,
     });
 
-    console.log('[OFFLINE] Empadronamiento encolado id=', id, 'uuid=', payload.uuid_cliente);
-    return { id, uuid_cliente: payload.uuid_cliente };
+    console.log('[OFFLINE] Empadronamiento encolado id=', id,
+      'codigo=', codigoLocal, 'uuid=', payload.uuid_cliente);
+    return { id: id, uuid_cliente: payload.uuid_cliente, codigo_local: codigoLocal };
   }
   window.electroEncolarEmpadronamiento = encolarEmpadronamiento;
+
+  // === Helper global: cancelar empadronamiento (botones Cancelar del wizard) ===
+  window.cancelarEmpadronamiento = async function () {
+    var ok = await window.appModal.confirm(
+      'Cancelar empadronamiento',
+      'Se perderan los datos ingresados. ¿Continuar?',
+      { danger: true, okText: 'Si, descartar', cancelText: 'Volver' }
+    );
+    if (ok === true) window.location.href = '/app/padron/';
+  };
 
   // Bootstrap auto-init — INDEPENDIENTE del DOM.
   // Razon: si hyperscript falla al parsear, DOMContentLoaded puede haberse

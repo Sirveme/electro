@@ -8,7 +8,7 @@
   const CSRF_COOKIE = '_csrf';
   const ENDPOINTS = {
     empadronar: '/app/api/empadronar-offline',
-    // pago: '/app/api/registrar-pago-offline',  // se define en 03c
+    pago: '/app/api/registrar-pago-offline',
   };
 
   function getCSRFToken() {
@@ -45,6 +45,21 @@
   }
 
   async function sincronizarTodo(onProgress) {
+    // Bloqueo por version obligatoria (gated por version_check.js)
+    var estadoVer = window._electroVersionEstado;
+    if (estadoVer && estadoVer.actualizacionObligatoria) {
+      if (window.appModal) {
+        await window.appModal.alert(
+          'Actualizacion obligatoria',
+          'Tu version (' + estadoVer.cliente + ') es muy antigua. No se puede ' +
+          'sincronizar hasta actualizar a la version ' + estadoVer.servidor + '.',
+          { okText: 'Actualizar ahora' }
+        );
+        if (window.electroAplicarActualizacion) window.electroAplicarActualizacion();
+      }
+      return { total: 0, ok: 0, conflict: 0, failed: 0, blocked: true, detalles: [] };
+    }
+
     await window.ElectroDB.open();
     const db = window.ElectroDB;
     const items = await db.getAll('sync_queue');
@@ -53,7 +68,7 @@
     );
 
     if (pendientes.length === 0) {
-      return { total: 0, ok: 0, conflict: 0, failed: 0 };
+      return { total: 0, ok: 0, conflict: 0, failed: 0, detalles: [] };
     }
 
     let ok = 0, conflict = 0, failed = 0;
@@ -119,7 +134,15 @@
         }
       } catch (e) { /* sin detalle, no fatal */ }
     }
-    return { total: pendientes.length, ok: ok, conflict: conflict, failed: failed, detalles: detalles };
+    var result = {
+      total: pendientes.length, ok: ok, conflict: conflict, failed: failed,
+      detalles: detalles,
+    };
+    // Notificar a otras pantallas (ej. /app/padron/ para banner "Actualizar lista")
+    try {
+      window.dispatchEvent(new CustomEvent('electro:sync-completed', { detail: result }));
+    } catch (e) { /* CustomEvent no disponible en browsers ancestrales */ }
+    return result;
   }
 
   // Helper: formatea el resumen + detalles como string multilinea para appModal.

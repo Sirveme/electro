@@ -10,18 +10,30 @@
 (function () {
   'use strict';
 
-  function submitLogoutForm(form) {
-    // Marcamos para que nuestro propio handler NO reintercepte.
-    form.dataset.bypassGuard = '1';
-    form.submit();
+  function goLogout(target) {
+    // Marca el elemento para que nuestro handler NO reintercepte y dispara
+    // la navegacion. Funciona para link <a> (location.href) o form (submit()).
+    if (target && target.tagName === 'FORM') {
+      target.dataset.bypassGuard = '1';
+      target.submit();
+    } else {
+      // link u otro: cambiar URL directamente.
+      window.location.href = '/logout';
+    }
   }
 
   document.addEventListener('DOMContentLoaded', () => {
-    const forms = document.querySelectorAll('form.logout-form, form[action="/logout"]');
-    forms.forEach((form) => {
-      form.addEventListener('submit', async (e) => {
-        if (form.dataset.bypassGuard === '1') return; // dejar pasar
-        if (!window.ElectroDB) return;                // sin IDB, comportamiento normal
+    // Soporta tanto el patron viejo (form POST) como el nuevo (link GET).
+    const targets = document.querySelectorAll(
+      'form.logout-form, form[action="/logout"], ' +
+      'a.logout-link, a[href="/logout"], a[href="/app/logout"]'
+    );
+    targets.forEach((el) => {
+      const isForm = el.tagName === 'FORM';
+      const eventName = isForm ? 'submit' : 'click';
+      el.addEventListener(eventName, async (e) => {
+        if (el.dataset.bypassGuard === '1') return; // dejar pasar
+        if (!window.ElectroDB) return;              // sin IDB, comportamiento normal
 
         let count = 0;
         try {
@@ -45,8 +57,7 @@
           try {
             const result = await window.electroSync.sincronizar();
             if (result.failed === 0 && result.conflict === 0) {
-              // Todo OK: salir.
-              submitLogoutForm(form);
+              goLogout(el);
             } else {
               await window.appModal.alert(
                 'Hubo problemas',
@@ -61,14 +72,13 @@
         }
 
         if (wantsSync === false) {
-          // El usuario eligio "decidir despues" → segundo paso: salir o cancelar.
           const salirIgual = await window.appModal.confirm(
             'Salir sin sincronizar?',
             'Los ' + count + ' cambio(s) quedaran guardados en este dispositivo y se ' +
             'enviaran la proxima vez que entres y sincronices. ¿Salir igualmente?',
             { okText: 'Salir', cancelText: 'Cancelar', danger: true }
           );
-          if (salirIgual === true) submitLogoutForm(form);
+          if (salirIgual === true) goLogout(el);
         }
         // Si wantsSync es undefined (Escape/backdrop) → no hacer nada (cancelar).
       });
