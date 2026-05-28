@@ -285,3 +285,32 @@ async def sync_status(
             "user_id": user.user_id,
         }
     )
+
+
+@router.get("/dni-check")
+async def dni_check(
+    request: Request,
+    dni: str,
+    user: CurrentUser = Depends(require_password_changed),
+):
+    """Devuelve si un DNI ya es jefe de familia de alguna vivienda activa.
+
+    Usado por el wizard paso 2 para avisar al usuario apenas escribe los 8
+    digitos — evita llegar al paso 4 y descubrir el conflicto al sincronizar.
+    """
+    if not dni or len(dni) != 8 or not dni.isdigit():
+        return JSONResponse({"existe": False})
+
+    async with tenant_session(user.tenant_schema) as ts:
+        row = (await ts.execute(text(
+            "SELECT v.codigo_interno "
+            "FROM moradores m JOIN viviendas v ON v.id = m.vivienda_id "
+            "WHERE m.dni = :dni AND m.es_jefe_familia = TRUE "
+            "  AND m.activo = TRUE AND v.activa = TRUE "
+            "  AND v.anulada_at IS NULL "
+            "LIMIT 1"
+        ), {"dni": dni})).mappings().first()
+
+    if row:
+        return JSONResponse({"existe": True, "codigo_interno": row["codigo_interno"]})
+    return JSONResponse({"existe": False})
