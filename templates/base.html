@@ -54,8 +54,12 @@
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
     </button>
     <span class="brand">
-      <svg class="brand-bolt" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L4.5 14h6L9 22l8.5-12h-6L13 2z"/></svg>
-      electro
+      {% if branding and branding.logo_url %}
+        <img class="topbar-logo" src="{{ branding.logo_url }}" alt="Logo">
+      {% else %}
+        <svg class="brand-bolt" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L4.5 14h6L9 22l8.5-12h-6L13 2z"/></svg>
+      {% endif %}
+      <span class="topbar-muni">{{ (branding.nombre_corto if branding else '') or 'electro' }}</span>
     </span>
     <div class="spacer"></div>
     <button class="btn-install-pwa" id="btn-install-pwa"
