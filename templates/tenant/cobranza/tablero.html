@@ -1,33 +1,40 @@
 {% extends 'base.html' %}
+{% from 'components/icons.html' import icon_cobrar, icon_ver, icon_buscar,
+  icon_ubicacion, icon_check, icon_alerta %}
 {% block title %}Cobranza{% endblock %}
 {% block content %}
 <section class="page cobranza-tablero">
 
-  {# Barra de indicadores #}
+  {# Barra de indicadores con borde de color por estado #}
   <div class="cobranza-stats">
-    <div class="stat-item">
-      <span class="stat-label">Caja</span>
-      {% if caja %}
-        <span class="stat-value stat-value--ok">Abierta · #{{ caja.id }}</span>
-        <small class="muted">Desde {{ caja.abierta_at | fmt_lima('%H:%M') }}</small>
-      {% else %}
-        <span class="stat-value stat-value--warn">Cerrada</span>
-      {% endif %}
+    <div class="stat-card stat-card--{% if caja %}ok{% else %}warn{% endif %}">
+      <div class="stat-label">Caja</div>
+      <div class="stat-value {% if caja %}stat-value--ok{% else %}stat-value--warn{% endif %}">
+        {% if caja %}Abierta · #{{ caja.id }}{% else %}Cerrada{% endif %}
+      </div>
+      <div class="stat-hint">
+        {% if caja %}Desde {{ caja.abierta_at | fmt_lima('%H:%M') }}{% else %}Sin caja abierta{% endif %}
+      </div>
     </div>
-    <div class="stat-item">
-      <span class="stat-label">Cobrado hoy</span>
-      <span class="stat-value">S/ {{ '%.2f' | format(cobrado_hoy) }}</span>
+    <div class="stat-card stat-card--info">
+      <div class="stat-label">Cobrado hoy</div>
+      <div class="stat-value">S/ {{ '%.2f' | format(cobrado_hoy) }}</div>
+      <div class="stat-hint">en esta caja</div>
     </div>
-    <div class="stat-item">
-      <span class="stat-label">Viviendas con deuda</span>
-      <span class="stat-value">{{ total_con_deuda }} / {{ total_activas }}</span>
+    <div class="stat-card stat-card--warn">
+      <div class="stat-label">Con deuda</div>
+      <div class="stat-value stat-value--warn">{{ total_con_deuda }} / {{ total_activas }}</div>
+      <div class="stat-hint">viviendas activas</div>
     </div>
-    {% if not caja and puede_abrir_caja %}
-      <button class="btn btn--sm btn--primary" type="button" onclick="window.cobranzaAbrirCajaRapido()">
+  </div>
+
+  {% if not caja and puede_abrir_caja %}
+    <p style="margin: -8px 0 16px;">
+      <button class="btn btn--primary" type="button" onclick="window.cobranzaAbrirCajaRapido()">
         Abrir caja ahora
       </button>
-    {% endif %}
-  </div>
+    </p>
+  {% endif %}
 
   {# Buscador #}
   <form method="get" action="/app/cobranza/" class="cobranza-search">
@@ -37,7 +44,7 @@
     {% if etiqueta_activa %}
       <input type="hidden" name="etiqueta" value="{{ etiqueta_activa }}">
     {% endif %}
-    <button type="submit" class="btn btn--ghost">Buscar</button>
+    <button type="submit" class="btn btn--ghost">{{ icon_buscar() }} Buscar</button>
     {% if q %}
       <a href="/app/cobranza/{% if etiqueta_activa %}?etiqueta={{ etiqueta_activa }}{% endif %}" class="btn btn--ghost">Limpiar</a>
     {% endif %}
@@ -60,36 +67,43 @@
   </div>
   {% endif %}
 
-  {# Lista de viviendas #}
+  {# Lista de viviendas con borde de color por estado #}
   <div class="cobranza-lista">
     {% for v in viviendas %}
-      <div class="vivienda-card" data-codigo="{{ v.codigo_interno }}">
+      {% set tiene_deuda = v.meses_deuda and v.meses_deuda > 0 %}
+      <div class="vivienda-card vivienda-card--{% if tiene_deuda %}deuda{% else %}aldia{% endif %}"
+           data-codigo="{{ v.codigo_interno }}">
         <div class="vivienda-info">
           <span class="vivienda-codigo">{{ v.codigo_interno }}</span>
           <span class="vivienda-jefe">{{ v.jefe or 'Sin jefe' }}{% if v.jefe_dni %} · DNI {{ v.jefe_dni }}{% endif %}</span>
           {% if v.referencia_fisica %}
-            <span class="vivienda-ref">{{ v.referencia_fisica[:90] }}{% if v.referencia_fisica|length > 90 %}…{% endif %}</span>
+            <span class="vivienda-ref">
+              {{ icon_ubicacion() }}
+              {{ v.referencia_fisica[:90] }}{% if v.referencia_fisica|length > 90 %}…{% endif %}
+            </span>
           {% endif %}
         </div>
-        <div class="vivienda-deuda">
-          {% if v.meses_deuda and v.meses_deuda > 0 %}
-            <span class="deuda-badge">
-              {{ v.meses_deuda }} mes(es) · S/ {{ '%.2f' | format(v.deuda_total | float) }}
+        <div class="vivienda-estado">
+          {% if tiene_deuda %}
+            <span class="badge badge--deuda">
+              {{ icon_alerta() }} {{ v.meses_deuda }} mes(es) · S/ {{ '%.2f' | format(v.deuda_total | float) }}
             </span>
           {% else %}
-            <span class="deuda-badge deuda-badge--ok">Al día</span>
+            <span class="badge badge--aldia">{{ icon_check() }} Al día</span>
           {% endif %}
         </div>
         <div class="vivienda-acciones">
-          {% if v.meses_deuda and v.meses_deuda > 0 and puede_cobrar %}
-            <button class="btn btn--sm btn--primary" type="button"
+          {% if tiene_deuda and puede_cobrar %}
+            <button class="btn btn--cobrar" type="button"
                     data-codigo="{{ v.codigo_interno }}"
                     data-jefe="{{ v.jefe or 'Sin jefe' }}"
                     onclick="window.cobranzaAbrirCobrar(this.dataset.codigo, this.dataset.jefe)">
-              Cobrar
+              {{ icon_cobrar() }} Cobrar
             </button>
           {% endif %}
-          <a href="/app/padron/{{ v.codigo_interno }}" class="btn btn--sm btn--ghost">Ver</a>
+          <a href="/app/padron/{{ v.codigo_interno }}" class="btn btn--icono" title="Ver ficha">
+            {{ icon_ver() }}
+          </a>
         </div>
       </div>
     {% else %}
@@ -127,7 +141,8 @@
       });
       var data = await resp.json().catch(function () { return {}; });
       if (resp.ok && data.ok) {
-        window.location.reload();
+        if (window.electroToast) window.electroToast('Caja abierta', 'success');
+        setTimeout(function () { window.location.reload(); }, 600);
       } else {
         await window.appModal.alert('No se pudo abrir caja', data.message || 'Error');
       }
@@ -230,11 +245,10 @@
       var data = r.data;
       if (r.resp.ok && data.ok) {
         window.cobranzaCerrarModal();
-        await window.appModal.alert(
-          'Cobro registrado',
-          'Se cobró S/ ' + r.total.toFixed(2) + ' correctamente.'
-        );
-        window.location.reload();
+        if (window.electroToast) {
+          window.electroToast('Cobro registrado: S/ ' + r.total.toFixed(2), 'success');
+        }
+        setTimeout(function () { window.location.reload(); }, 700);
         return;
       }
       if (data.error === 'sin_caja') {
@@ -247,11 +261,13 @@
         var r2 = await postCobro(true);
         if (r2 && r2.resp.ok && r2.data.ok) {
           window.cobranzaCerrarModal();
-          await window.appModal.alert(
-            'Cobro registrado',
-            'Caja abierta y cobro de S/ ' + r2.total.toFixed(2) + ' registrado.'
-          );
-          window.location.reload();
+          if (window.electroToast) {
+            window.electroToast(
+              'Caja abierta y cobro de S/ ' + r2.total.toFixed(2),
+              'success'
+            );
+          }
+          setTimeout(function () { window.location.reload(); }, 700);
           return;
         }
         await window.appModal.alert('Error', (r2 && r2.data && r2.data.message) || 'No se pudo registrar el cobro');
@@ -292,14 +308,15 @@
         created_at: new Date().toISOString(), attempts: 0, last_error: null,
       });
       window.cobranzaCerrarModal();
-      await window.appModal.alert(
-        'Cobro guardado localmente',
-        'S/ ' + total.toFixed(2) + ' quedo en cola.\n\n' +
-        'Se enviara al servidor cuando sincronices. La caja asignada sera la que ' +
-        'tengas abierta en ese momento.',
-        { okText: 'Entendido' }
-      );
-      window.location.reload();
+      if (window.electroToast) {
+        window.electroToast(
+          'Guardado localmente: S/ ' + total.toFixed(2) +
+          '. Se enviará al sincronizar.',
+          'warning',
+          5000
+        );
+      }
+      setTimeout(function () { window.location.reload(); }, 1200);
     }
   })();
 </script>
