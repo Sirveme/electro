@@ -12,6 +12,26 @@
       <input type="text" name="nombre" required maxlength="120" value="{{ comunidad.nombre if comunidad else '' }}">
     </label>
 
+    <label class="form-field">
+      <span class="form-label">Alumbrado público mensual (S/.)</span>
+      <input type="number" name="alumbrado_publico_mensual" step="0.01" min="0"
+             value="{{ '%.2f' | format(comunidad.alumbrado_publico_mensual or 0) if comunidad else '0.00' }}">
+      <small class="form-hint">Cargo fijo que se suma a cada recibo de esta comunidad.</small>
+    </label>
+
+    <label class="form-field">
+      <span class="form-label">Referente avalador</span>
+      <select name="referente_principal_id">
+        <option value="">— Sin referente —</option>
+        {% for r in referentes %}
+          <option value="{{ r.id }}" {% if comunidad and comunidad.referente_principal_id == r.id %}selected{% endif %}>
+            {{ r.nombre_completo }} · {{ r.cargo }}
+          </option>
+        {% endfor %}
+      </select>
+      <small class="form-hint">Se asignará automáticamente al empadronar viviendas de esta comunidad.</small>
+    </label>
+
     {% if comunidad %}
     <label class="form-field">
       <input type="checkbox" name="activa" {% if comunidad.activa %}checked{% endif %}>
