@@ -37,6 +37,29 @@ async def listar(
     )
 
 
+async def _listar_referentes(ts):
+    return (
+        await ts.execute(
+            text(
+                "SELECT id, nombre_completo, cargo FROM referentes "
+                "WHERE activo = TRUE ORDER BY nombre_completo"
+            )
+        )
+    ).all()
+
+
+def _parse_alumbrado(raw: str) -> str:
+    """Normaliza el monto de alumbrado a string decimal válido (>= 0)."""
+    from decimal import Decimal, InvalidOperation
+    try:
+        val = Decimal(str(raw or "0").strip().replace(",", "."))
+    except (InvalidOperation, AttributeError, ValueError):
+        val = Decimal("0")
+    if val < 0:
+        val = Decimal("0")
+    return str(val)
+
+
 @router.get("/nuevo", response_class=HTMLResponse)
 async def nueva_form(
     request: Request,
@@ -44,9 +67,11 @@ async def nueva_form(
 ):
     if not user.puede("padron", "comunidades", "editar"):
         raise HTTPException(403, "Sin permiso")
+    async with tenant_session(user.tenant_schema) as ts:
+        referentes = await _listar_referentes(ts)
     return request.app.state.templates.TemplateResponse(
         "tenant/comunidades/form.html",
-        build_context(request, user=user, comunidad=None, error=None),
+        build_context(request, user=user, comunidad=None, referentes=referentes, error=None),
     )
 
 
@@ -55,6 +80,8 @@ async def nueva_submit(
     request: Request,
     user: CurrentUser = Depends(require_password_changed),
     nombre: str = Form(...),
+    alumbrado_publico_mensual: str = Form("0"),
+    referente_principal_id: str = Form(""),
 ):
     if not user.puede("padron", "comunidades", "editar"):
         raise HTTPException(403, "Sin permiso")
@@ -62,11 +89,16 @@ async def nueva_submit(
     if not nombre_clean:
         set_flash(request, "error", "El nombre es obligatorio.")
         return RedirectResponse("/app/comunidades/nuevo", status_code=303)
+    ref_id = int(referente_principal_id) if referente_principal_id.strip().isdigit() else None
+    alumbrado = _parse_alumbrado(alumbrado_publico_mensual)
     async with tenant_session(user.tenant_schema) as ts:
         try:
             await ts.execute(
-                text("INSERT INTO comunidades (nombre, activa) VALUES (:n, TRUE)"),
-                {"n": nombre_clean},
+                text(
+                    "INSERT INTO comunidades (nombre, activa, alumbrado_publico_mensual, referente_principal_id) "
+                    "VALUES (:n, TRUE, :al, :ref)"
+                ),
+                {"n": nombre_clean, "al": alumbrado, "ref": ref_id},
             )
             await ts.commit()
         except Exception:
@@ -89,15 +121,21 @@ async def editar_form(
     async with tenant_session(user.tenant_schema) as ts:
         row = (
             await ts.execute(
-                text("SELECT id, nombre, activa FROM comunidades WHERE id = :id"),
+                text(
+                    "SELECT id, nombre, activa, "
+                    "       COALESCE(alumbrado_publico_mensual, 0) AS alumbrado_publico_mensual, "
+                    "       referente_principal_id "
+                    "FROM comunidades WHERE id = :id"
+                ),
                 {"id": comunidad_id},
             )
-        ).first()
-    if not row:
-        raise HTTPException(404, "Comunidad no encontrada")
+        ).mappings().first()
+        if not row:
+            raise HTTPException(404, "Comunidad no encontrada")
+        referentes = await _listar_referentes(ts)
     return request.app.state.templates.TemplateResponse(
         "tenant/comunidades/form.html",
-        build_context(request, user=user, comunidad=row, error=None),
+        build_context(request, user=user, comunidad=dict(row), referentes=referentes, error=None),
     )
 
 
@@ -108,14 +146,22 @@ async def editar_submit(
     user: CurrentUser = Depends(require_password_changed),
     nombre: str = Form(...),
     activa: Optional[str] = Form(None),
+    alumbrado_publico_mensual: str = Form("0"),
+    referente_principal_id: str = Form(""),
 ):
     if not user.puede("padron", "comunidades", "editar"):
         raise HTTPException(403, "Sin permiso")
     activa_bool = activa == "on"
+    ref_id = int(referente_principal_id) if referente_principal_id.strip().isdigit() else None
+    alumbrado = _parse_alumbrado(alumbrado_publico_mensual)
     async with tenant_session(user.tenant_schema) as ts:
         await ts.execute(
-            text("UPDATE comunidades SET nombre = :n, activa = :a WHERE id = :id"),
-            {"n": nombre.strip(), "a": activa_bool, "id": comunidad_id},
+            text(
+                "UPDATE comunidades SET nombre = :n, activa = :a, "
+                "alumbrado_publico_mensual = :al, referente_principal_id = :ref "
+                "WHERE id = :id"
+            ),
+            {"n": nombre.strip(), "a": activa_bool, "al": alumbrado, "ref": ref_id, "id": comunidad_id},
         )
         await ts.commit()
     set_flash(request, "success", "Comunidad actualizada.")

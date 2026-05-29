@@ -44,12 +44,28 @@ async def index_form(
 ):
     if not user.puede("config", "municipio", "editar"):
         raise HTTPException(403, "Sin permiso")
+    from sqlalchemy import text
     async with tenant_session(user.tenant_schema) as ts:
         config = await obtener_config_calculo(ts)
         branding = await obtener_branding(ts)
+        comunidades = (
+            await ts.execute(
+                text(
+                    "SELECT c.id, c.nombre, c.activa, "
+                    "       COALESCE(c.alumbrado_publico_mensual, 0) AS alumbrado_publico_mensual, "
+                    "       r.nombre_completo AS referente_nombre "
+                    "FROM comunidades c "
+                    "LEFT JOIN referentes r ON r.id = c.referente_principal_id "
+                    "ORDER BY c.activa DESC, c.nombre"
+                )
+            )
+        ).mappings().all()
     return request.app.state.templates.TemplateResponse(
         "tenant/configuracion/index.html",
-        build_context(request, user=user, config=config, branding_actual=branding),
+        build_context(
+            request, user=user, config=config, branding_actual=branding,
+            comunidades=[dict(c) for c in comunidades],
+        ),
     )
 
 
@@ -57,15 +73,18 @@ async def index_form(
 async def index_submit(
     request: Request,
     user: CurrentUser = Depends(require_password_changed),
-    cargo_fijo_mensual: str = Form(...),
     adicional_por_morador: str = Form(...),
 ):
+    # zClaude-fix-16: el cargo fijo por municipio fue reemplazado por el
+    # alumbrado público por comunidad (se configura por comunidad). Aquí solo se
+    # edita el adicional por morador; se preserva el valor de cargo_fijo en BD.
     if not user.puede("config", "municipio", "editar"):
         raise HTTPException(403, "Sin permiso")
     try:
-        cargo = _parse_decimal(cargo_fijo_mensual, "Cargo fijo")
         adicional = _parse_decimal(adicional_por_morador, "Adicional por morador")
         async with tenant_session(user.tenant_schema) as ts:
+            config_actual = await obtener_config_calculo(ts)
+            cargo = _parse_decimal(str(config_actual.get("cargo_fijo_mensual", 0)), "Cargo fijo")
             await guardar_config_calculo(ts, cargo, adicional)
             await ts.commit()
     except TarifaError as exc:

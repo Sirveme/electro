@@ -41,6 +41,17 @@ router = APIRouter(prefix="/app/padron")
 SESSION_KEY = "empadronamiento"
 MOTIVOS_BAJA = ["vendido", "malogrado", "autoreporte_morador", "correccion"]
 
+import re as _re
+_WHATSAPP_RE = _re.compile(r"^9\d{8}$")
+
+
+def _normalizar_whatsapp(raw: str) -> Optional[str]:
+    """Devuelve el número limpio (9 dígitos, empieza con 9) o None si vacío/inválido."""
+    solo_digitos = _re.sub(r"\D", "", raw or "")[:9]
+    if not solo_digitos:
+        return None
+    return solo_digitos if _WHATSAPP_RE.match(solo_digitos) else None
+
 
 # ---------- listado ----------
 
@@ -166,7 +177,10 @@ async def wizard_paso1_form(
     async with tenant_session(user.tenant_schema) as ts:
         comunidades = (
             await ts.execute(
-                text("SELECT id, nombre FROM comunidades WHERE activa = TRUE ORDER BY nombre")
+                text(
+                    "SELECT id, nombre, referente_principal_id "
+                    "FROM comunidades WHERE activa = TRUE ORDER BY nombre"
+                )
             )
         ).all()
         referentes = (
@@ -241,7 +255,7 @@ async def wizard_paso2_submit(
     nombre_completo: str = Form(...),
     fecha_nacimiento: str = Form(""),
     sexo: str = Form(""),
-    telefono: str = Form(""),
+    whatsapp: str = Form(""),
     acceso_portal: Optional[str] = Form(None),
 ):
     if not user.puede("padron", "viviendas", "crear"):
@@ -256,12 +270,19 @@ async def wizard_paso2_submit(
         set_flash(request, "error", str(exc))
         return RedirectResponse("/app/padron/nuevo/paso2", status_code=303)
 
+    wa = _normalizar_whatsapp(whatsapp)
+    if whatsapp.strip() and wa is None:
+        set_flash(request, "error", "El WhatsApp debe tener 9 dígitos y comenzar con 9.")
+        return RedirectResponse("/app/padron/nuevo/paso2", status_code=303)
     w["datos"]["paso2"] = {
         "dni": dni_clean,
         "nombre_completo": nombre_completo.strip(),
         "fecha_nacimiento": fecha_nacimiento.strip() or None,
         "sexo": sexo.strip().upper()[:1] if sexo.strip() else None,
-        "telefono": telefono.strip() or None,
+        # whatsapp es el nuevo campo; se replica en telefono por compat (lecturas
+        # de ficha y flujo offline que aún leen 'telefono' del estado de sesión).
+        "whatsapp": wa,
+        "telefono": wa,
         "acceso_portal": acceso_portal == "on",
     }
     w["paso"] = 3
@@ -295,7 +316,7 @@ async def wizard_paso3_submit(
     nombre_completo: str = Form(""),
     fecha_nacimiento: str = Form(""),
     sexo: str = Form(""),
-    telefono: str = Form(""),
+    whatsapp: str = Form(""),
 ):
     if not user.puede("padron", "viviendas", "crear"):
         raise HTTPException(403, "Sin permiso")
@@ -314,12 +335,17 @@ async def wizard_paso3_submit(
         if dni_clean == w["datos"]["paso2"]["dni"]:
             set_flash(request, "error", "El segundo morador no puede tener el mismo DNI del jefe.")
             return RedirectResponse("/app/padron/nuevo/paso3", status_code=303)
+        wa = _normalizar_whatsapp(whatsapp)
+        if whatsapp.strip() and wa is None:
+            set_flash(request, "error", "El WhatsApp debe tener 9 dígitos y comenzar con 9.")
+            return RedirectResponse("/app/padron/nuevo/paso3", status_code=303)
         w["datos"]["paso3"] = {
             "dni": dni_clean,
             "nombre_completo": nombre_completo.strip(),
             "fecha_nacimiento": fecha_nacimiento.strip() or None,
             "sexo": sexo.strip().upper()[:1] if sexo.strip() else None,
-            "telefono": telefono.strip() or None,
+            "whatsapp": wa,
+            "telefono": wa,
         }
     w["paso"] = 4
     _save_wizard(request, w)
@@ -335,49 +361,64 @@ async def wizard_paso4_form(
     if not user.puede("padron", "viviendas", "crear"):
         raise HTTPException(403, "Sin permiso")
     w = _wizard_session(request)
-    if "paso2" not in w.get("datos", {}):
+    datos = w.get("datos", {})
+    if "paso2" not in datos:
         return RedirectResponse("/app/padron/nuevo/paso1", status_code=303)
 
+    from app.services.tarifa_service import listar_habilitados
+
+    comunidad_id = (datos.get("paso1") or {}).get("comunidad_id")
     async with tenant_session(user.tenant_schema) as ts:
-        catalogo = (
-            await ts.execute(
-                text(
-                    "SELECT ac.id, ac.codigo, ac.nombre, ac.categoria, ac.icono, "
-                    "       COALESCE(cfg.tarifa_mensual, ac.tarifa_sugerida) AS tarifa "
-                    "FROM public.artefacto_catalogo ac "
-                    "LEFT JOIN artefacto_config cfg ON cfg.catalogo_id = ac.id "
-                    "WHERE (cfg.habilitado IS NULL AND ac.activo_default = TRUE) "
-                    "   OR cfg.habilitado = TRUE "
-                    "ORDER BY ac.categoria, ac.orden, ac.nombre"
-                )
-            )
-        ).all()
-        propios = (
-            await ts.execute(
-                text(
-                    "SELECT codigo, nombre, categoria, tarifa_mensual AS tarifa "
-                    "FROM artefacto_propio WHERE habilitado = TRUE "
-                    "ORDER BY categoria, orden, nombre"
-                )
-            )
-        ).all()
+        habilitados = await listar_habilitados(ts)
 
         cfg_rows = (
             await ts.execute(
                 text(
                     "SELECT clave, valor FROM config_municipio "
-                    "WHERE clave IN ('cargo_fijo_mensual', 'adicional_por_morador')"
+                    "WHERE clave = 'adicional_por_morador'"
                 )
             )
         ).all()
         config = {r.clave: r.valor for r in cfg_rows}
 
+        # Alumbrado público de la comunidad seleccionada (reemplaza al cargo fijo).
+        alumbrado = 0
+        if comunidad_id:
+            row = (
+                await ts.execute(
+                    text(
+                        "SELECT COALESCE(alumbrado_publico_mensual, 0) AS al "
+                        "FROM comunidades WHERE id = :c"
+                    ),
+                    {"c": comunidad_id},
+                )
+            ).first()
+            if row:
+                alumbrado = float(row.al or 0)
+
+    # Frecuentes = acceso rápido (cards). El resto va al buscador "Otro artefacto".
+    frecuentes = [a for a in habilitados if a.get("es_frecuente")]
+    catalogo_completo = [
+        {
+            "origen": a["origen"],
+            "codigo": a["codigo"],
+            "nombre": a["nombre"],
+            "categoria": a.get("categoria") or "",
+            "icono": a.get("icono") or "",
+            "tarifa": float(a.get("tarifa") or 0),
+        }
+        for a in habilitados
+    ]
+
     return request.app.state.templates.TemplateResponse(
         "tenant/padron/wizard_paso4_inventario.html",
         build_context(
             request, user=user,
-            datos=w.get("datos", {}),
-            catalogo=catalogo, propios=propios, config=config,
+            datos=datos,
+            frecuentes=frecuentes,
+            catalogo_completo=catalogo_completo,
+            config=config,
+            alumbrado=alumbrado,
         ),
     )
 
@@ -387,7 +428,7 @@ async def wizard_paso4_submit(
     request: Request,
     user: CurrentUser = Depends(require_password_changed),
     inventario_json: str = Form(...),
-    foto_fachada: UploadFile = File(...),
+    foto_fachada: UploadFile = File(None),
 ):
     if not user.puede("padron", "viviendas", "crear"):
         raise HTTPException(403, "Sin permiso")
@@ -404,10 +445,8 @@ async def wizard_paso4_submit(
         set_flash(request, "error", f"Inventario inválido: {exc}")
         return RedirectResponse("/app/padron/nuevo/paso4", status_code=303)
 
-    foto_bytes = await foto_fachada.read()
-    if not foto_bytes:
-        set_flash(request, "error", "La foto de fachada es obligatoria.")
-        return RedirectResponse("/app/padron/nuevo/paso4", status_code=303)
+    # zClaude-fix-16: la foto de fachada es OPCIONAL. Se puede empadronar sin foto.
+    foto_bytes = await foto_fachada.read() if foto_fachada is not None else b""
 
     p1 = datos["paso1"]
     p2 = datos["paso2"]
@@ -435,7 +474,10 @@ async def wizard_paso4_submit(
                 segundo_morador=p3,
                 artefactos=items,
                 foto_fachada_bytes=foto_bytes,
-                foto_fachada_content_type=foto_fachada.content_type or "image/jpeg",
+                foto_fachada_content_type=(
+                    (foto_fachada.content_type if foto_fachada is not None else None)
+                    or "image/jpeg"
+                ),
             )
         except EmpadronamientoError as exc:
             set_flash(request, "error", f"No se pudo guardar la vivienda: {exc}")
@@ -608,6 +650,54 @@ async def baja_artefacto(
             set_flash(request, "error", str(exc))
             return RedirectResponse(f"/app/padron/{codigo}", status_code=303)
     set_flash(request, "success", "Artefacto dado de baja.")
+    return RedirectResponse(f"/app/padron/{codigo}", status_code=303)
+
+
+# ---------- toggle subvención (opt-out por vivienda) ----------
+
+@router.post("/{codigo}/toggle-subvencion", dependencies=[Depends(verify_csrf)])
+async def toggle_subvencion(
+    request: Request,
+    codigo: str,
+    user: CurrentUser = Depends(require_password_changed),
+    tiene_subvencion: str = Form(...),
+):
+    if not user.puede("viviendas", "admin", "editar"):
+        raise HTTPException(403, "Sin permiso")
+    nuevo = tiene_subvencion.strip().lower() in ("1", "true", "on", "si", "sí")
+    async with tenant_session(user.tenant_schema) as ts:
+        viv = (
+            await ts.execute(
+                text("SELECT id, anulada_at FROM viviendas WHERE codigo_interno = :c"),
+                {"c": codigo},
+            )
+        ).mappings().first()
+        if not viv:
+            raise HTTPException(404, "Vivienda no encontrada")
+        if viv["anulada_at"] is not None:
+            set_flash(request, "error", "Vivienda anulada: no se modifica la subvención.")
+            return RedirectResponse(f"/app/padron/{codigo}", status_code=303)
+        await ts.execute(
+            text("UPDATE viviendas SET tiene_subvencion = :s WHERE id = :id"),
+            {"s": nuevo, "id": viv["id"]},
+        )
+        desc = (
+            "Subvención por ordenanza ACTIVADA (recibe descuento del subsidio vigente)"
+            if nuevo else
+            "Subvención por ordenanza DESACTIVADA (excluida del subsidio vigente)"
+        )
+        await ts.execute(
+            text(
+                "INSERT INTO vivienda_eventos (vivienda_id, tipo, descripcion, user_id) "
+                "VALUES (:v, 'subvencion', :d, :u)"
+            ),
+            {"v": viv["id"], "d": desc, "u": user.user_id},
+        )
+        await ts.commit()
+    set_flash(
+        request, "success",
+        "Subvención activada." if nuevo else "Subvención desactivada para esta vivienda.",
+    )
     return RedirectResponse(f"/app/padron/{codigo}", status_code=303)
 
 

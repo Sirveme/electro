@@ -29,6 +29,8 @@ from app.services.tarifa_service import (
     editar_tarifa_catalogo,
     listar_unificado,
     toggle_catalogo,
+    toggle_frecuente_catalogo,
+    toggle_frecuente_propio,
     toggle_propio,
 )
 from app.utils.flash import set_flash
@@ -153,6 +155,54 @@ async def toggle_propio_route(
     try:
         async with tenant_session(user.tenant_schema) as ts:
             await toggle_propio(ts, codigo)
+            items = await listar_unificado(ts)
+            await ts.commit()
+        item = next((i for i in items if i["origen"] == "propio" and i["codigo"] == codigo), None)
+    except TarifaError as exc:
+        raise HTTPException(400, str(exc))
+    if not item:
+        raise HTTPException(404, "Artefacto no encontrado")
+    return request.app.state.templates.TemplateResponse(
+        "tenant/tarifas/_frag_tarifa_row.html",
+        build_context(request, user=user, item=item),
+    )
+
+
+@router.post("/catalogo/{codigo}/frecuente", dependencies=[Depends(verify_csrf)])
+async def toggle_frecuente_catalogo_route(
+    request: Request,
+    codigo: str,
+    user: CurrentUser = Depends(require_password_changed),
+):
+    if not _puede_editar(user):
+        raise HTTPException(403, "Sin permiso")
+    try:
+        async with tenant_session(user.tenant_schema) as ts:
+            await toggle_frecuente_catalogo(ts, codigo)
+            items = await listar_unificado(ts)
+            await ts.commit()
+        item = next((i for i in items if i["origen"] == "catalogo" and i["codigo"] == codigo), None)
+    except TarifaError as exc:
+        raise HTTPException(400, str(exc))
+    if not item:
+        raise HTTPException(404, "Artefacto no encontrado")
+    return request.app.state.templates.TemplateResponse(
+        "tenant/tarifas/_frag_tarifa_row.html",
+        build_context(request, user=user, item=item),
+    )
+
+
+@router.post("/propio/{codigo}/frecuente", dependencies=[Depends(verify_csrf)])
+async def toggle_frecuente_propio_route(
+    request: Request,
+    codigo: str,
+    user: CurrentUser = Depends(require_password_changed),
+):
+    if not _puede_editar(user):
+        raise HTTPException(403, "Sin permiso")
+    try:
+        async with tenant_session(user.tenant_schema) as ts:
+            await toggle_frecuente_propio(ts, codigo)
             items = await listar_unificado(ts)
             await ts.commit()
         item = next((i for i in items if i["origen"] == "propio" and i["codigo"] == codigo), None)
