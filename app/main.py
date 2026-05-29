@@ -12,6 +12,7 @@ from app.jinja_filters import register_filters
 from app.middleware.csrf_cookie import CSRFCookieMiddleware
 from app.routes import auth as auth_routes
 from app.routes import portal as portal_routes
+from app.routes import publico as publico_routes
 from app.routes import pwa as pwa_routes
 from app.routes.superadmin import dashboard as sa_dashboard
 from app.routes.superadmin import municipios as sa_municipios
@@ -29,6 +30,7 @@ from app.routes.tenant import cobranza as tenant_cobranza
 from app.routes.tenant import cobranza_v2 as tenant_cobranza_v2
 from app.routes.tenant import caja as tenant_caja
 from app.routes.tenant import recibo_pdf as tenant_recibo_pdf
+from app.routes.tenant import recibos as tenant_recibos
 from app.routes.tenant import pago_pdf as tenant_pago_pdf
 from app.routes.tenant import reportes as tenant_reportes
 from app.routes.tenant import vivienda_admin as tenant_vivienda_admin
@@ -89,6 +91,7 @@ async def healthz():
 
 app.include_router(auth_routes.router)
 app.include_router(portal_routes.router)
+app.include_router(publico_routes.router)
 app.include_router(pwa_routes.router)
 app.include_router(sa_dashboard.router)
 app.include_router(sa_municipios.router)
@@ -106,6 +109,7 @@ app.include_router(tenant_cobranza_v2.router)  # tablero v2 (registrar antes par
 app.include_router(tenant_cobranza.router)
 app.include_router(tenant_caja.router)
 app.include_router(tenant_recibo_pdf.router)
+app.include_router(tenant_recibos.router)
 app.include_router(tenant_pago_pdf.router)
 app.include_router(tenant_reportes.router)
 app.include_router(tenant_vivienda_admin.router)
