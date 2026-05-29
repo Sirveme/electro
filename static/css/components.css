@@ -271,8 +271,13 @@
 }
 
 .page-title {
-  margin: 0;
-  font-size: 1.5rem;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 16px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--primary);
+  display: inline-block;
 }
 
 .page-subtitle {
