@@ -544,3 +544,44 @@
   letter-spacing: 0.02em;
 }
 .config-tabla tr:last-child td { border-bottom: none; }
+
+/* ============================================================
+   zClaude-fix-17 — Recibos: impresión por lotes
+   ============================================================ */
+.recibos-page { display: flex; flex-direction: column; gap: 16px; }
+.recibos-toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.recibos-tabla { width: 100%; border-collapse: collapse; }
+.recibos-tabla th,
+.recibos-tabla td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+.recibos-tabla th {
+  background: var(--bg-base);
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+.filtros-form .form-row-inline {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.filtros-form .form-row-inline label { font-weight: 500; font-size: 0.9rem; }
+.filtros-form select,
+.filtros-form input[type="text"] {
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-base);
+  color: var(--text);
+}
