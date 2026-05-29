@@ -515,3 +515,32 @@
   border-bottom: 1px solid var(--border);
   color: var(--text-strong);
 }
+
+/* ============================================================
+   Página de Configuración rediseñada (zClaude-fix-16)
+   ============================================================ */
+.config-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 900px;
+}
+.config-page .card { margin: 0; }
+.config-tabla {
+  width: 100%;
+  border-collapse: collapse;
+}
+.config-tabla th,
+.config-tabla td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.config-tabla th {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.config-tabla tr:last-child td { border-bottom: none; }

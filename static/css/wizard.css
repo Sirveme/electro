@@ -61,3 +61,79 @@
   gap: 8px;
   margin-top: 16px;
 }
+
+/* ============================================================
+   zClaude-fix-16 — Paso 4: artefactos frecuentes + buscador flotante
+   ============================================================ */
+.seccion-titulo {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 18px 0 8px;
+  color: var(--text-strong);
+}
+
+.artefactos-frecuentes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+  margin: 8px 0 12px;
+}
+.artefactos-frecuentes:empty { margin: 0; }
+
+.artefacto-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.artefacto-nombre { font-weight: 600; color: var(--text-strong); }
+.artefacto-tarifa { font-size: 0.85rem; color: var(--text-muted); }
+
+.artefacto-cantidad {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+.artefacto-cantidad button {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--text-strong);
+}
+.artefacto-cantidad button:hover { background: var(--bg-surface); }
+.artefacto-cantidad input.inv-cantidad {
+  width: 64px;
+  text-align: center;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-base);
+  color: var(--text);
+}
+
+.artefactos-lista-flotante {
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin: 8px 0;
+}
+.artefacto-resultado {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.artefacto-resultado:hover { background: rgba(27, 79, 245, 0.08); }
+.artefacto-resultado:last-child { border-bottom: none; }
