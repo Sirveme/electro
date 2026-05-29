@@ -16,17 +16,20 @@
 
     <label class="form-field">
       <span class="form-label">Comunidad</span>
-      <select name="comunidad_id" required>
+      <select name="comunidad_id" id="comunidad-select" required
+              onchange="window.autoLlenarReferente(this)">
         <option value="">— Selecciona —</option>
         {% for c in comunidades %}
-          <option value="{{ c.id }}" {% if datos.paso1 and datos.paso1.comunidad_id == c.id %}selected{% endif %}>{{ c.nombre }}</option>
+          <option value="{{ c.id }}"
+                  data-referente-id="{{ c.referente_principal_id or '' }}"
+                  {% if datos.paso1 and datos.paso1.comunidad_id == c.id %}selected{% endif %}>{{ c.nombre }}</option>
         {% endfor %}
       </select>
     </label>
 
     <label class="form-field">
-      <span class="form-label">Referente que avala (opcional)</span>
-      <select name="referente_id">
+      <span class="form-label">Referente que avala</span>
+      <select name="referente_id" id="referente-select">
         <option value="">— Ninguno —</option>
         {% for r in referentes %}
           <option value="{{ r.id }}" {% if datos.paso1 and datos.paso1.referente_id == r.id %}selected{% endif %}>
@@ -34,6 +37,7 @@
           </option>
         {% endfor %}
       </select>
+      <small class="form-hint">Se asigna automáticamente según la comunidad. Puedes cambiarlo si hace falta.</small>
     </label>
 
     <label class="form-field">
@@ -96,4 +100,18 @@
   </form>
 </section>
 <script src="/static/js/geolocation.js" defer></script>
+<script>
+  // Al elegir comunidad, autocompletar el referente avalador configurado en ella.
+  // Offline-safe: sin fetch, usa el data-referente-id ya serializado en el option.
+  window.autoLlenarReferente = function (sel) {
+    var opt = sel && sel.options[sel.selectedIndex];
+    var refId = opt ? (opt.getAttribute('data-referente-id') || '') : '';
+    var refSel = document.getElementById('referente-select');
+    if (!refSel) return;
+    // Solo autollenar si el referente existe en la lista; si no, dejar lo elegido.
+    if (refId && refSel.querySelector('option[value="' + refId + '"]')) {
+      refSel.value = refId;
+    }
+  };
+</script>
 {% endblock %}

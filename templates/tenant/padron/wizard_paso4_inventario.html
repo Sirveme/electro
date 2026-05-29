@@ -15,46 +15,43 @@
     <div>Estimación mensual:</div>
     <div class="estimacion-monto">S/. <span id="estimacion-monto">0.00</span></div>
     <small class="muted">
-      Cargo fijo: S/. {{ config.cargo_fijo_mensual or '0' }}
+      Alumbrado público: S/. {{ '%.2f' | format(alumbrado or 0) }}
       {% if config.adicional_por_morador and (config.adicional_por_morador | float) > 0 %}
         · Adicional por morador: S/. {{ config.adicional_por_morador }}
       {% endif %}
+      · estimación antes de subvención
     </small>
   </div>
 
-  <input type="text" id="filtro-artefactos" class="filtro-input" placeholder="Buscar artefacto..."
-    _="on input
-        set q to my value.toLowerCase()
-        for row in <.inv-row/>
-          if row.dataset.search.includes(q) then show row else hide row end
-        end">
-
-  <div class="inv-list" id="inv-list">
-    {% for a in catalogo %}
-    <div class="inv-row" data-search="{{ (a.nombre ~ ' ' ~ a.codigo ~ ' ' ~ a.categoria) | lower }}">
-      <span class="inv-icon">{{ a.icono or '·' }}</span>
-      <div class="inv-info">
-        <strong>{{ a.nombre }}</strong>
-        <small class="muted">{{ a.categoria }} · S/. {{ '%.2f' | format(a.tarifa or 0) }}/mes</small>
+  <h3 class="seccion-titulo">Artefactos frecuentes</h3>
+  {% if frecuentes %}
+  <div class="artefactos-frecuentes">
+    {% for a in frecuentes %}
+    <div class="artefacto-card">
+      <div class="artefacto-nombre">
+        {% if a.icono %}<span aria-hidden="true">{{ a.icono }}</span> {% endif %}{{ a.nombre }}
       </div>
-      <input type="number" class="inv-cantidad" min="0" value="0"
-        data-origen="catalogo" data-codigo="{{ a.codigo }}" data-tarifa="{{ a.tarifa or 0 }}"
-        _="on input call window.recomputarEstimacion()">
-    </div>
-    {% endfor %}
-    {% for a in propios %}
-    <div class="inv-row" data-search="{{ (a.nombre ~ ' ' ~ a.codigo ~ ' ' ~ a.categoria) | lower }}">
-      <span class="inv-icon">★</span>
-      <div class="inv-info">
-        <strong>{{ a.nombre }}</strong>
-        <small class="muted">{{ a.categoria }} · S/. {{ '%.2f' | format(a.tarifa or 0) }}/mes · propio</small>
+      <div class="artefacto-tarifa">S/. {{ '%.2f' | format(a.tarifa or 0) }} c/u</div>
+      <div class="artefacto-cantidad">
+        <button type="button" aria-label="Disminuir" onclick="window.cambiarCantidad(this, -1)">−</button>
+        <input type="number" class="inv-cantidad" min="0" value="0"
+               data-origen="{{ a.origen }}" data-codigo="{{ a.codigo }}" data-tarifa="{{ a.tarifa or 0 }}"
+               _="on input call window.recomputarEstimacion()">
+        <button type="button" aria-label="Aumentar" onclick="window.cambiarCantidad(this, 1)">+</button>
       </div>
-      <input type="number" class="inv-cantidad" min="0" value="0"
-        data-origen="propio" data-codigo="{{ a.codigo }}" data-tarifa="{{ a.tarifa or 0 }}"
-        _="on input call window.recomputarEstimacion()">
     </div>
     {% endfor %}
   </div>
+  {% else %}
+  <p class="muted">No hay artefactos marcados como frecuentes. Usa "Otro artefacto" para agregarlos, o márcalos en Configuración → Catálogo.</p>
+  {% endif %}
+
+  {# Artefactos agregados desde el buscador (no frecuentes). #}
+  <div class="artefactos-frecuentes" id="inv-extra"></div>
+
+  <button type="button" class="btn btn--ghost" onclick="window.abrirBuscarArtefacto()">
+    + Otro artefacto (no frecuente)
+  </button>
 
   {# hx-boost="false" desactiva el boost de HTMX (heredado del <body>) en este
      form especifico: HTMX intercepta el submit ANTES que cualquier
@@ -62,14 +59,16 @@
      usar `onsubmit=` inline + apagar el boost. #}
   <form method="post" action="/app/padron/nuevo/paso4" class="form" enctype="multipart/form-data"
         id="form-final" hx-boost="false" data-no-htmx="true"
-        onsubmit="return window.manejarSubmitWizard(event, this)">
+        onsubmit="return window.manejarSubmitWizard(event, this)"
+        style="margin-top:1rem;">
     {% include 'components/csrf_input.html' %}
     <input type="hidden" name="inventario_json" id="inventario-json" value="[]">
 
     <label class="form-field">
-      <span class="form-label">Foto de la fachada (obligatoria)</span>
-      <input type="file" name="foto_fachada" id="foto-input" accept="image/*" capture="environment" required
+      <span class="form-label">Foto de la fachada (opcional)</span>
+      <input type="file" name="foto_fachada" id="foto-input" accept="image/*" capture="environment"
         _="on change call window.onFotoSeleccionada(event.target.files[0])">
+      <small class="form-hint">Opcional. Puedes empadronar sin foto.</small>
       <img id="foto-preview" alt="" style="display:none; max-width:240px; border-radius:8px; margin-top:8px;">
     </label>
 
@@ -84,6 +83,8 @@
     </div>
   </form>
 
+  {% include 'tenant/padron/_modal_buscar_artefacto.html' %}
+
   {# Snapshot del wizard server-side: si el usuario llega aqui es porque pudo
      navegar paso1→2→3→4, asi que ya tenemos los datos en sesion. Los serializamos
      para que el handler offline arme el payload sin volver a pedir al servidor. #}
@@ -92,18 +93,144 @@
 
 <script src="/static/js/image_compress.js" defer></script>
 <script>
-  var CARGO_FIJO = parseFloat({{ config.cargo_fijo_mensual or '0' }}) || 0;
-  var ADICIONAL = parseFloat({{ config.adicional_por_morador or '0' }}) || 0;
+  var ALUMBRADO = parseFloat("{{ alumbrado or 0 }}") || 0;
+  var ADICIONAL = parseFloat("{{ config.adicional_por_morador or '0' }}") || 0;
   var N_MORADORES = {% if datos.paso3 %}2{% else %}1{% endif %};
 
+  // Catálogo completo (todos los habilitados) para el buscador "Otro artefacto".
+  window._catalogoCompleto = {{ catalogo_completo | tojson }};
+
   window.recomputarEstimacion = function() {
-    var total = CARGO_FIJO + (N_MORADORES * ADICIONAL);
+    var total = ALUMBRADO + (N_MORADORES * ADICIONAL);
     document.querySelectorAll('.inv-cantidad').forEach(function(inp) {
       var cant = parseInt(inp.value) || 0;
       var tarifa = parseFloat(inp.dataset.tarifa) || 0;
       total += cant * tarifa;
     });
     document.getElementById('estimacion-monto').textContent = total.toFixed(2);
+  };
+
+  // Stepper +/− de las cards.
+  window.cambiarCantidad = function(btn, delta) {
+    var card = btn.closest('.artefacto-card');
+    var inp = card && card.querySelector('.inv-cantidad');
+    if (!inp) return;
+    var v = (parseInt(inp.value) || 0) + delta;
+    if (v < 0) v = 0;
+    inp.value = v;
+    window.recomputarEstimacion();
+  };
+
+  // === Buscador flotante de catálogo (no frecuentes) ===
+  window.abrirBuscarArtefacto = function() {
+    var modal = document.getElementById('modal-buscar-artefacto');
+    modal.classList.remove('hidden');
+    modal.setAttribute('aria-hidden', 'false');
+    window.filtrarArtefactos('');
+    var inp = document.getElementById('buscar-artefacto-input');
+    inp.value = '';
+    inp.focus();
+  };
+
+  window.cerrarBuscarArtefacto = function() {
+    var modal = document.getElementById('modal-buscar-artefacto');
+    modal.classList.add('hidden');
+    modal.setAttribute('aria-hidden', 'true');
+  };
+
+  window.filtrarArtefactos = function(q) {
+    q = (q || '').toLowerCase().trim();
+    var cont = document.getElementById('buscar-artefacto-resultados');
+    var lista = q
+      ? window._catalogoCompleto.filter(function(a){ return (a.nombre || '').toLowerCase().includes(q); })
+      : window._catalogoCompleto;
+    cont.textContent = '';
+    var slice = lista.slice(0, 40);
+    if (!slice.length) {
+      var vacio = document.createElement('div');
+      vacio.className = 'muted';
+      vacio.style.padding = '10px 12px';
+      vacio.textContent = 'Sin resultados.';
+      cont.appendChild(vacio);
+      return;
+    }
+    // Creación por DOM (sin innerHTML) para evitar problemas de escape en nombres.
+    slice.forEach(function(a) {
+      var tarifa = parseFloat(a.tarifa) || 0;
+      var row = document.createElement('div');
+      row.className = 'artefacto-resultado';
+      var nombre = document.createElement('strong');
+      nombre.textContent = a.nombre || '';
+      var precio = document.createElement('small');
+      precio.textContent = 'S/. ' + tarifa.toFixed(2);
+      row.appendChild(nombre);
+      row.appendChild(precio);
+      row.addEventListener('click', function() {
+        window.agregarArtefacto(a.origen, a.codigo, a.nombre, tarifa);
+      });
+      cont.appendChild(row);
+    });
+  };
+
+  window.agregarArtefacto = function(origen, codigo, nombre, tarifa) {
+    // Si ya existe un input para ese artefacto (frecuente o extra), incrementa.
+    var existente = document.querySelector(
+      '.inv-cantidad[data-origen="' + origen + '"][data-codigo="' + codigo + '"]');
+    if (existente) {
+      existente.value = (parseInt(existente.value) || 0) + 1;
+      window.recomputarEstimacion();
+      window.cerrarBuscarArtefacto();
+      return;
+    }
+    var cont = document.getElementById('inv-extra');
+    var tarifaNum = parseFloat(tarifa) || 0;
+
+    var card = document.createElement('div');
+    card.className = 'artefacto-card';
+
+    var nom = document.createElement('div');
+    nom.className = 'artefacto-nombre';
+    nom.textContent = nombre;
+
+    var tar = document.createElement('div');
+    tar.className = 'artefacto-tarifa';
+    tar.textContent = 'S/. ' + tarifaNum.toFixed(2) + ' c/u';
+
+    var cantWrap = document.createElement('div');
+    cantWrap.className = 'artefacto-cantidad';
+
+    var menos = document.createElement('button');
+    menos.type = 'button';
+    menos.setAttribute('aria-label', 'Disminuir');
+    menos.textContent = '−';
+    menos.addEventListener('click', function() { window.cambiarCantidad(menos, -1); });
+
+    var inp = document.createElement('input');
+    inp.type = 'number';
+    inp.className = 'inv-cantidad';
+    inp.min = '0';
+    inp.value = '1';
+    inp.dataset.origen = origen;
+    inp.dataset.codigo = codigo;
+    inp.dataset.tarifa = tarifaNum;
+    inp.addEventListener('input', window.recomputarEstimacion);
+
+    var mas = document.createElement('button');
+    mas.type = 'button';
+    mas.setAttribute('aria-label', 'Aumentar');
+    mas.textContent = '+';
+    mas.addEventListener('click', function() { window.cambiarCantidad(mas, 1); });
+
+    cantWrap.appendChild(menos);
+    cantWrap.appendChild(inp);
+    cantWrap.appendChild(mas);
+    card.appendChild(nom);
+    card.appendChild(tar);
+    card.appendChild(cantWrap);
+    cont.appendChild(card);
+
+    window.recomputarEstimacion();
+    window.cerrarBuscarArtefacto();
   };
 
   window.prepararPayload = function() {
@@ -202,7 +329,7 @@
         nombre_completo: p2.nombre_completo,
         fecha_nacimiento: p2.fecha_nacimiento || null,
         sexo: p2.sexo || null,
-        telefono: p2.telefono || null,
+        telefono: p2.telefono || p2.whatsapp || null,
         es_jefe_familia: true,
         es_responsable_pago: true,
         acceso_portal: !!p2.acceso_portal,
@@ -215,7 +342,7 @@
         nombre_completo: p3.nombre_completo,
         fecha_nacimiento: p3.fecha_nacimiento || null,
         sexo: p3.sexo || null,
-        telefono: p3.telefono || null,
+        telefono: p3.telefono || p3.whatsapp || null,
         es_jefe_familia: false,
         es_responsable_pago: false,
         acceso_portal: false,
@@ -235,12 +362,8 @@
     var p1 = state.paso1 || {};
     var fotoInput = document.getElementById('foto-input');
     var file = fotoInput && fotoInput.files && fotoInput.files[0];
-    if (!file) {
-      await window.appModal.alert('Falta la foto', 'La foto de la fachada es obligatoria.');
-      return;
-    }
-
-    var fotoBase64 = await _fileToBase64(file);
+    // zClaude-fix-16: la foto es opcional, también en el flujo offline.
+    var fotoBase64 = file ? await _fileToBase64(file) : null;
     var payload = {
       uuid_cliente: window.electroUUID(),
       comunidad_id: p1.comunidad_id,

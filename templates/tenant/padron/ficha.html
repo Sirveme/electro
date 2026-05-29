@@ -74,6 +74,52 @@
     {% endif %}
   </div>
 
+  {% if (ctx.user | puede('viviendas', 'admin', 'editar')) and not vivienda.anulada_at %}
+  <div class="card">
+    <h2 class="card-titulo">Subvención por Ordenanza</h2>
+    <form id="form-subvencion" method="post"
+          action="/app/padron/{{ vivienda.codigo_interno }}/toggle-subvencion"
+          hx-boost="false">
+      {% include 'components/csrf_input.html' %}
+      <input type="hidden" name="tiene_subvencion" id="subvencion-target"
+             value="{{ '1' if vivienda.tiene_subvencion else '0' }}">
+      <label class="form-field" style="flex-direction:row; align-items:center; gap:8px;">
+        <input type="checkbox" id="subvencion-check"
+               {% if vivienda.tiene_subvencion %}checked{% endif %}
+               onchange="window.confirmarSubvencion(this)">
+        <span class="form-label" style="margin:0;">Recibe subvención por Ordenanza</span>
+      </label>
+      <small class="form-hint">
+        Si está marcado, se aplicará el descuento del subsidio vigente de su comunidad
+        al consumo privado.
+      </small>
+    </form>
+  </div>
+  <script>
+    window.confirmarSubvencion = function (cb) {
+      var desired = cb.checked;
+      var msg = desired
+        ? 'Se aplicará el descuento del subsidio vigente de su comunidad al consumo privado de esta vivienda en los próximos recibos.'
+        : 'Esta vivienda quedará EXCLUIDA del subsidio. Sus próximos recibos NO recibirán el descuento sobre el consumo privado.';
+      cb.disabled = true;
+      Promise.resolve(
+        window.appModal.confirm('Subvención por Ordenanza', msg, {
+          danger: !desired,
+          okText: desired ? 'Sí, aplicar' : 'Sí, quitar',
+        })
+      ).then(function (ok) {
+        if (ok) {
+          document.getElementById('subvencion-target').value = desired ? '1' : '0';
+          document.getElementById('form-subvencion').submit();
+        } else {
+          cb.checked = !desired; // revertir
+          cb.disabled = false;
+        }
+      });
+    };
+  </script>
+  {% endif %}
+
   <div class="card">
     <h2 class="card-titulo">Moradores</h2>
     <div class="moradores-grid">

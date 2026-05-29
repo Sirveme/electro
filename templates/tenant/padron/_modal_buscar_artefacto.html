@@ -1,0 +1,19 @@
+{# Buscador flotante del catálogo completo (artefactos no frecuentes).
+   Reutiliza .modal-inline / .modal-inline-card de padron.css. Se controla con
+   la clase .hidden. El catálogo completo se serializa a window._catalogoCompleto
+   desde el server (ver wizard_paso4_inventario.html). #}
+<div id="modal-buscar-artefacto" class="modal-inline hidden" aria-hidden="true">
+  <div class="modal-inline-card">
+    <h2>Buscar artefacto</h2>
+    <input type="text" id="buscar-artefacto-input" class="filtro-input"
+           placeholder="Empieza a escribir el nombre…"
+           oninput="window.filtrarArtefactos(this.value)"
+           autocomplete="off">
+    <div id="buscar-artefacto-resultados" class="artefactos-lista-flotante">
+      <!-- Poblado por JS desde el catálogo completo -->
+    </div>
+    <div class="form-actions">
+      <button type="button" class="btn btn--ghost" onclick="window.cerrarBuscarArtefacto()">Cerrar</button>
+    </div>
+  </div>
+</div>

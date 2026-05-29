@@ -43,9 +43,11 @@
         </select>
       </label>
       <label class="form-field">
-        <span class="form-label">Teléfono</span>
-        <input type="text" name="telefono" maxlength="20"
-          value="{{ datos.paso3.telefono if datos.paso3 else '' }}">
+        <span class="form-label">WhatsApp (opcional)</span>
+        <input type="tel" name="whatsapp" pattern="9\d{8}" maxlength="9"
+          inputmode="numeric" placeholder="9XXXXXXXX"
+          value="{{ (datos.paso3.whatsapp or datos.paso3.telefono or '') if datos.paso3 else '' }}"
+          oninput="this.value = this.value.replace(/\D/g, '').slice(0, 9)">
       </label>
     </div>
 

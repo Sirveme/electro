@@ -76,11 +76,14 @@
         </select>
       </label>
       <label class="form-field">
-        <span class="form-label">Teléfono</span>
-        <input type="text" name="telefono" maxlength="20"
-          value="{{ datos.paso2.telefono if datos.paso2 else '' }}">
+        <span class="form-label">WhatsApp (opcional)</span>
+        <input type="tel" name="whatsapp" pattern="9\d{8}" maxlength="9"
+          inputmode="numeric" placeholder="9XXXXXXXX"
+          value="{{ (datos.paso2.whatsapp or datos.paso2.telefono or '') if datos.paso2 else '' }}"
+          oninput="this.value = this.value.replace(/\D/g, '').slice(0, 9)">
       </label>
     </div>
+    <small class="form-hint">WhatsApp: número peruano de 9 dígitos comenzando con 9. Servirá para notificaciones de recibo.</small>
 
     <label class="form-field">
       <input type="checkbox" name="acceso_portal" {% if datos.paso2 and datos.paso2.acceso_portal %}checked{% endif %}>
