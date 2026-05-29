@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A5; margin: 8mm; }
+  * { box-sizing: border-box; }
+  body { font-family: 'DejaVu Sans', sans-serif; font-size: 9pt; color: #1a1a1a; margin: 0; }
+
+  .recibo-page { position: relative; page-break-after: always; }
+  .recibo-page:last-child { page-break-after: auto; }
+
+  .encabezado {
+    display: flex; gap: 10pt;
+    border-bottom: 1.5pt solid #1B4FF5;
+    padding-bottom: 6pt; margin-bottom: 8pt;
+  }
+  .encabezado-logo { width: 50pt; }
+  .encabezado-logo img { width: 100%; }
+  .encabezado-info { flex: 1; }
+  .encabezado-info .muni-nombre { font-weight: bold; font-size: 11pt; color: #1B4FF5; }
+  .encabezado-info p { margin: 1pt 0; font-size: 8pt; }
+
+  .titulo-recibo { text-align: center; font-weight: bold; font-size: 11pt; margin: 8pt 0 4pt; }
+
+  .recibo-numero-qr {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 8pt; padding: 6pt 8pt;
+    background: #f0f3ff; border: 1pt solid #1B4FF5; border-radius: 4pt;
+  }
+  .recibo-numero { font-family: 'DejaVu Sans Mono', monospace; font-size: 14pt; font-weight: bold; color: #1B4FF5; }
+  .qr img { width: 50pt; height: 50pt; }
+
+  .periodos { display: flex; gap: 10pt; margin-bottom: 8pt; font-size: 8pt; }
+  .periodos strong { color: #1B4FF5; }
+
+  .morador-box {
+    border: 0.5pt solid #aaa; border-radius: 3pt;
+    padding: 6pt 8pt; margin-bottom: 8pt; font-size: 8.5pt;
+  }
+  .morador-box .nombre { font-weight: bold; font-size: 10pt; }
+
+  .cargos { width: 100%; border-collapse: collapse; font-size: 9pt; }
+  .cargos td { padding: 2pt 4pt; border-bottom: 0.25pt dotted #ccc; }
+  .cargos .monto { text-align: right; font-family: 'DejaVu Sans Mono', monospace; white-space: nowrap; }
+  .cargos .seccion { font-weight: bold; background: #f5f5f5; border-bottom: 0.5pt solid #ccc; }
+  .cargos .indent { padding-left: 14pt; }
+  .cargos .subtotal td { border-top: 0.5pt solid #888; font-weight: bold; }
+  .cargos .descuento { color: #d97706; }
+  .cargos .neto td { font-weight: bold; border-top: 0.5pt solid #888; }
+
+  .total-box {
+    margin-top: 8pt; padding: 8pt 10pt;
+    background: #1B4FF5; color: white; border-radius: 4pt;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 13pt; font-weight: bold;
+  }
+  .total-monto { font-family: 'DejaVu Sans Mono', monospace; }
+
+  .sello-box {
+    margin-top: 14pt; height: 35pt;
+    border: 0.5pt dashed #888; padding: 4pt;
+    text-align: center; font-size: 7pt; color: #888;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .pie {
+    margin-top: 12pt; padding-top: 6pt;
+    border-top: 0.5pt solid #ccc;
+    font-size: 7pt; color: #555; text-align: center; line-height: 1.4;
+  }
+  .pie .legal { margin-bottom: 4pt; }
+  .pie .proveedor { font-weight: 500; color: #1B4FF5; }
+
+  .sello-pagado {
+    position: absolute; top: 38%; left: 50%;
+    transform: translate(-50%, -50%) rotate(-15deg);
+    font-size: 34pt; font-weight: bold;
+    color: rgba(220, 38, 38, 0.7);
+    border: 3pt solid rgba(220, 38, 38, 0.7);
+    padding: 8pt 24pt; border-radius: 4pt;
+    text-align: center;
+  }
+  .sello-pagado .subtexto { font-size: 8pt; font-weight: normal; margin-top: 2pt; }
+</style>
+</head>
+<body>
+{% for r in recibos %}
+<div class="recibo-page">
+
+  {% if r.estado == 'pagado' and r.pago %}
+  <div class="sello-pagado">
+    PAGO TOTAL
+    <div class="subtexto">
+      Pagado el {{ r.pago.fecha_pago.strftime('%d/%m/%Y') }}<br>
+      {% if r.pago.cajero_nombre %}Cajero: {{ r.pago.cajero_nombre }}{% endif %}
+    </div>
+  </div>
+  {% elif r.estado == 'parcial' and r.pago %}
+  <div class="sello-pagado">
+    PAGO EN PARTE
+    <div class="subtexto">
+      S/ {{ "%.2f"|format(r.pago.monto) }} de S/ {{ "%.2f"|format(r.total) }}<br>
+      Saldo: S/ {{ "%.2f"|format(r.saldo_pendiente) }}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="encabezado">
+    {% if r.config.logo_url %}
+    <div class="encabezado-logo"><img src="{{ r.config.logo_url }}" alt="Logo"></div>
+    {% endif %}
+    <div class="encabezado-info">
+      <div class="muni-nombre">{{ r.config.nombre_municipalidad or 'MUNICIPALIDAD' }}</div>
+      {% if r.config.ruc %}<p>RUC: {{ r.config.ruc }}</p>{% endif %}
+      {% if r.config.direccion_municipalidad %}<p>{{ r.config.direccion_municipalidad }}</p>{% endif %}
+      {% if r.config.telefono_municipalidad %}<p>Tel: {{ r.config.telefono_municipalidad }}</p>{% endif %}
+    </div>
+  </div>
+
+  <div class="titulo-recibo">RECIBO POR COBRO DE ENERGÍA ELÉCTRICA</div>
+
+  <div class="recibo-numero-qr">
+    <span class="recibo-numero">{{ r.numero_recibo }}</span>
+    {% if r.qr_base64 %}<span class="qr"><img src="{{ r.qr_base64 }}" alt="QR"></span>{% endif %}
+  </div>
+
+  <div class="periodos">
+    <span><strong>Periodo:</strong> {{ r.periodo_label }}</span>
+    {% if r.fecha_emision %}<span><strong>Emisión:</strong> {{ r.fecha_emision.strftime('%d/%m/%Y') }}</span>{% endif %}
+    {% if r.fecha_vencimiento %}<span><strong>Vence:</strong> {{ r.fecha_vencimiento.strftime('%d/%m/%Y') }}</span>{% endif %}
+  </div>
+
+  <div class="morador-box">
+    <div class="nombre">{{ r.jefe }}</div>
+    <div>DNI: {{ r.jefe_dni }} &nbsp;|&nbsp; Vivienda: {{ r.vivienda_codigo }}</div>
+    <div>{{ r.direccion }}</div>
+    <div>Comunidad: {{ r.comunidad }}</div>
+  </div>
+
+  <table class="cargos">
+    <tr class="seccion"><td colspan="2">ALUMBRADO PÚBLICO</td></tr>
+    <tr>
+      <td class="indent">Cargo fijo por alumbrado</td>
+      <td class="monto">S/ {{ "%.2f"|format(r.alumbrado) }}</td>
+    </tr>
+    <tr class="seccion"><td colspan="2">CONSUMO PRIVADO</td></tr>
+    {% for it in r.inventario %}
+    <tr>
+      <td class="indent">{{ "%.0f"|format(it.cantidad) }} × {{ it.nombre }} (S/ {{ "%.2f"|format(it.tarifa) }} c/u)</td>
+      <td class="monto">S/ {{ "%.2f"|format(it.subtotal) }}</td>
+    </tr>
+    {% endfor %}
+    {% if r.n_moradores > 0 and r.adicional_morador > 0 %}
+    <tr>
+      <td class="indent">{{ r.n_moradores }} moradores × S/ {{ "%.2f"|format(r.adicional_morador) }}</td>
+      <td class="monto">S/ {{ "%.2f"|format(r.subtotal_moradores) }}</td>
+    </tr>
+    {% endif %}
+    <tr class="subtotal">
+      <td>Subtotal consumo</td>
+      <td class="monto">S/ {{ "%.2f"|format(r.consumo_privado) }}</td>
+    </tr>
+    {% if r.descuento > 0 %}
+    <tr class="descuento">
+      <td>Subvención ({{ "%.0f"|format(r.subsidio_pct) }}% — {{ r.subsidio_ord or 'Ord. vigente' }})</td>
+      <td class="monto">- S/ {{ "%.2f"|format(r.descuento) }}</td>
+    </tr>
+    <tr class="neto">
+      <td>Consumo neto</td>
+      <td class="monto">S/ {{ "%.2f"|format(r.consumo_neto) }}</td>
+    </tr>
+    {% endif %}
+  </table>
+
+  <div class="total-box">
+    <span>TOTAL A PAGAR</span>
+    <span class="total-monto">S/ {{ "%.2f"|format(r.total) }}</span>
+  </div>
+
+  <div class="sello-box">Sello y firma del cajero</div>
+
+  <div class="pie">
+    <div class="legal">
+      Recibo interno municipal sin valor tributario.<br>
+      Válido únicamente con sello de caja y firma del cajero.<br>
+      Verificable en: <strong>{{ r.verify_url }}</strong>
+    </div>
+    <div class="proveedor">
+      Sistema operado por {{ r.proveedor.nombre }} · {{ r.proveedor.url }}
+    </div>
+  </div>
+
+</div>
+{% endfor %}
+</body>
+</html>

@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+{% block title %}Recibos — Impresión por lotes{% endblock %}
+{% block content %}
+<section class="recibos-page">
+  <h1 class="page-title">Recibos — Impresión por lotes</h1>
+
+  <div class="card">
+    <h2 class="card-titulo">Filtros</h2>
+    <form method="get" action="/app/recibos" class="filtros-form" hx-boost="false">
+      <div class="form-row-inline">
+        <label>Período</label>
+        <select name="periodo_anio">
+          <option value="">— Año —</option>
+          {% for anio in range(2026, 2031) %}
+          <option value="{{ anio }}" {% if filtros.periodo_anio == anio %}selected{% endif %}>{{ anio }}</option>
+          {% endfor %}
+        </select>
+        <select name="periodo_mes">
+          <option value="">— Mes —</option>
+          {% for m in range(1, 13) %}
+          <option value="{{ m }}" {% if filtros.periodo_mes == m %}selected{% endif %}>{{ '%02d' | format(m) }}</option>
+          {% endfor %}
+        </select>
+
+        <label>Comunidad</label>
+        <select name="comunidad_id">
+          <option value="">— Todas —</option>
+          {% for c in comunidades %}
+          <option value="{{ c.id }}" {% if filtros.comunidad_id == c.id %}selected{% endif %}>{{ c.nombre }}</option>
+          {% endfor %}
+        </select>
+
+        <label>Estado</label>
+        <select name="estado">
+          <option value="todos" {% if filtros.estado == 'todos' %}selected{% endif %}>Todos</option>
+          <option value="pendiente" {% if filtros.estado == 'pendiente' %}selected{% endif %}>Pendientes</option>
+          <option value="pagado" {% if filtros.estado == 'pagado' %}selected{% endif %}>Pagados</option>
+        </select>
+      </div>
+      <div class="form-row-inline">
+        <label>Desde código</label>
+        <input type="text" name="desde" value="{{ filtros.desde or '' }}" placeholder="V-0001">
+        <label>Hasta código</label>
+        <input type="text" name="hasta" value="{{ filtros.hasta or '' }}" placeholder="V-0050">
+        <button type="submit" class="btn btn--primary">Filtrar</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2 class="card-titulo">Recibos ({{ cuotas | length }})</h2>
+    <p class="muted small">Selecciona los recibos a imprimir. Recomendado: lotes de 30-50.</p>
+
+    <div class="recibos-toolbar">
+      <button type="button" class="btn btn--ghost btn--sm" onclick="seleccionarTodos(true)">Seleccionar todos</button>
+      <button type="button" class="btn btn--ghost btn--sm" onclick="seleccionarTodos(false)">Limpiar</button>
+      <span class="muted">|</span>
+      <button type="button" class="btn btn--primary btn--sm" onclick="imprimirSeleccionados()">
+        Descargar lote PDF
+      </button>
+    </div>
+
+    {% if cuotas | length == 0 %}
+      <p class="muted">No hay recibos para los filtros seleccionados.</p>
+    {% else %}
+    <div class="table-wrap">
+      <table class="recibos-tabla">
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="check-all" onchange="seleccionarTodos(this.checked)"></th>
+            <th>N° Recibo</th>
+            <th>Vivienda</th>
+            <th>Responsable</th>
+            <th>Comunidad</th>
+            <th>Total</th>
+            <th>Estado</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in cuotas %}
+          <tr>
+            <td><input type="checkbox" class="check-cuota" value="{{ c.id }}"></td>
+            <td><code>{{ c.numero_recibo or '—' }}</code></td>
+            <td>{{ c.codigo_interno }}</td>
+            <td>{{ c.jefe or 'Sin responsable' }}</td>
+            <td>{{ c.comunidad }}</td>
+            <td>S/ {{ "%.2f"|format(c.total) }}</td>
+            <td>{{ c.estado }}</td>
+            <td>
+              <a href="/app/recibos/cuota/{{ c.id }}.pdf" target="_blank" rel="noopener"
+                 class="btn btn--ghost btn--sm" hx-boost="false">Ver</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+</section>
+
+<script>
+  function seleccionarTodos(estado) {
+    document.querySelectorAll('.check-cuota').forEach(function (cb) { cb.checked = estado; });
+    var all = document.getElementById('check-all');
+    if (all && all.checked !== estado) all.checked = estado;
+  }
+
+  function _idsSeleccionados() {
+    var ids = [];
+    document.querySelectorAll('.check-cuota:checked').forEach(function (cb) { ids.push(cb.value); });
+    return ids;
+  }
+
+  function descargar(ids) {
+    window.location.href = '/app/recibos/lote.pdf?cuota_ids=' + ids.join(',');
+  }
+
+  function imprimirSeleccionados() {
+    var ids = _idsSeleccionados();
+    if (ids.length === 0) {
+      window.appModal.alert('Atención', 'Selecciona al menos un recibo.');
+      return;
+    }
+    if (ids.length > 50) {
+      window.appModal.confirm(
+        'Lote grande',
+        'Vas a generar ' + ids.length + ' recibos en un solo PDF. Recomendado: 30-50 por lote. ¿Continuar?',
+        { okText: 'Sí, continuar' }
+      ).then(function (ok) { if (ok) descargar(ids); });
+      return;
+    }
+    descargar(ids);
+  }
+</script>
+{% endblock %}
