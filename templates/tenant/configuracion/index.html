@@ -1,77 +1,129 @@
 {% extends 'base.html' %}
-{% block title %}Configuración general{% endblock %}
+{% block title %}Configuración del municipio{% endblock %}
 {% block content %}
-<section class="page">
-  <h1 class="page-title">Configuración general</h1>
-  <p class="page-subtitle">
-    Define cómo se calcula el monto base del recibo mensual.
-    El total final = cargo fijo + Σ(cantidad × tarifa) + (cantidad de moradores × adicional).
-  </p>
+<section class="config-page">
 
-  <form method="post" action="/app/configuracion" class="form" hx-boost="false">
-    {% include 'components/csrf_input.html' %}
+  <h1 class="page-title">Configuración del municipio</h1>
 
-    <div class="form-row">
+  <div class="card">
+    <h2 class="card-titulo">Branding</h2>
+    <p class="muted small">
+      Logo y nombre que aparecen en el topbar de la aplicación. Cambios visibles
+      al recargar la página.
+    </p>
+
+    <form method="post" action="/app/configuracion/logo" class="form"
+          enctype="multipart/form-data" hx-boost="false">
+      {% include 'components/csrf_input.html' %}
+
+      {% if branding_actual.logo_url %}
+        <div class="form-field">
+          <span class="form-label">Logo actual</span>
+          <img src="{{ branding_actual.logo_url }}" alt="Logo actual"
+               style="max-height:80px; max-width:200px; background:white; padding:4px; border-radius:4px;">
+        </div>
+      {% endif %}
+
       <label class="form-field">
-        <span class="form-label">Cargo fijo mensual (S/.)</span>
-        <input type="number" name="cargo_fijo_mensual" required step="0.01" min="0"
-               value="{{ '%.2f' | format(config.cargo_fijo_mensual or 0) }}">
-        <small class="form-hint">Se aplica a TODA vivienda activa, sin importar inventario.</small>
+        <span class="form-label">Subir logo nuevo (PNG, JPG, SVG o WebP — máx 2 MB)</span>
+        <input type="file" name="logo" accept="image/png,image/jpeg,image/svg+xml,image/webp">
+        <small class="form-hint">Dejar vacío si no quieres cambiar el logo actual.</small>
       </label>
+
+      <label class="form-field">
+        <span class="form-label">Nombre completo de la municipalidad</span>
+        <input type="text" name="nombre_municipalidad" maxlength="120"
+               value="{{ branding_actual.nombre_municipalidad or '' }}"
+               placeholder="Ej. Municipalidad Distrital de Manseriche">
+      </label>
+
+      <label class="form-field">
+        <span class="form-label">Nombre corto (para el topbar)</span>
+        <input type="text" name="nombre_corto" maxlength="40"
+               value="{{ branding_actual.nombre_corto or '' }}"
+               placeholder="Ej. Manseriche">
+      </label>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn--primary">Guardar branding</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2 class="card-titulo">Cálculo del recibo</h2>
+    <p class="muted small">
+      TOTAL = Alumbrado público (por comunidad) + (Consumo privado − Subvención).
+      El consumo privado es Σ(cantidad × tarifa) más el adicional por morador.
+    </p>
+    <form method="post" action="/app/configuracion" class="form" hx-boost="false">
+      {% include 'components/csrf_input.html' %}
+
       <label class="form-field">
         <span class="form-label">Adicional por morador (S/.)</span>
         <input type="number" name="adicional_por_morador" required step="0.01" min="0"
                value="{{ '%.2f' | format(config.adicional_por_morador or 0) }}">
-        <small class="form-hint">Monto extra que se suma por cada morador activo.</small>
+        <small class="form-hint">Monto extra que se suma por cada morador activo de la vivienda.</small>
       </label>
-    </div>
 
-    <div class="form-actions">
-      <button type="submit" class="btn btn--primary">Guardar configuración</button>
-    </div>
-  </form>
-
-  <h2 style="margin-top:32px">Branding del municipio</h2>
-  <p class="page-subtitle">
-    Logo y nombre que aparecen en el topbar de la aplicación. Cambios visibles
-    al recargar la página.
-  </p>
-
-  <form method="post" action="/app/configuracion/logo" class="form"
-        enctype="multipart/form-data" hx-boost="false">
-    {% include 'components/csrf_input.html' %}
-
-    {% if branding_actual.logo_url %}
-      <div class="form-field">
-        <span class="form-label">Logo actual</span>
-        <img src="{{ branding_actual.logo_url }}" alt="Logo actual"
-             style="max-height:80px; max-width:200px; background:white; padding:4px; border-radius:4px;">
+      <div class="form-actions">
+        <button type="submit" class="btn btn--primary">Guardar cálculo</button>
       </div>
-    {% endif %}
+    </form>
+  </div>
 
-    <label class="form-field">
-      <span class="form-label">Subir logo nuevo (PNG, JPG, SVG o WebP — máx 2 MB)</span>
-      <input type="file" name="logo" accept="image/png,image/jpeg,image/svg+xml,image/webp">
-      <small class="form-hint">Dejar vacío si no quieres cambiar el logo actual.</small>
-    </label>
-
-    <label class="form-field">
-      <span class="form-label">Nombre completo de la municipalidad</span>
-      <input type="text" name="nombre_municipalidad" maxlength="120"
-             value="{{ branding_actual.nombre_municipalidad or '' }}"
-             placeholder="Ej. Municipalidad Distrital de Manseriche">
-    </label>
-
-    <label class="form-field">
-      <span class="form-label">Nombre corto (para el topbar)</span>
-      <input type="text" name="nombre_corto" maxlength="40"
-             value="{{ branding_actual.nombre_corto or '' }}"
-             placeholder="Ej. Manseriche">
-    </label>
-
-    <div class="form-actions">
-      <button type="submit" class="btn btn--primary">Guardar branding</button>
+  <div class="card">
+    <h2 class="card-titulo">Comunidades y alumbrado público</h2>
+    <p class="muted small">
+      El alumbrado público es un cargo fijo mensual por comunidad. Cada comunidad
+      también define su referente avalador, que se asigna automáticamente al empadronar.
+    </p>
+    <div class="table-wrap">
+      <table class="config-tabla">
+        <thead>
+          <tr><th>Comunidad</th><th>Alumbrado (S/.)</th><th>Referente</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for c in comunidades %}
+          <tr>
+            <td>{{ c.nombre }}{% if not c.activa %} <span class="muted small">(inactiva)</span>{% endif %}</td>
+            <td>S/ {{ '%.2f' | format(c.alumbrado_publico_mensual or 0) }}</td>
+            <td>{{ c.referente_nombre or '—' }}</td>
+            <td><a href="/app/comunidades/{{ c.id }}/editar" class="btn btn--ghost btn--sm">Editar</a></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="muted">No hay comunidades registradas.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
-  </form>
+    <div class="form-actions">
+      <a href="/app/comunidades/nuevo" class="btn btn--ghost">+ Nueva comunidad</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="card-titulo">Subvención por ordenanza</h2>
+    <p class="muted small">
+      La subvención se administra como subsidio por comunidad (porcentaje, base
+      legal y vigencia). Cada vivienda puede excluirse desde su ficha
+      (opt-out). El descuento aplica solo al consumo privado.
+    </p>
+    <div class="form-actions">
+      <a href="/app/subsidios/" class="btn btn--ghost">Gestionar subsidios →</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="card-titulo">Catálogo de artefactos</h2>
+    <p class="muted small">
+      Marca como <strong>Frecuente</strong> los artefactos que aparecen como
+      acceso rápido al empadronar. El resto queda disponible en "Otro artefacto".
+    </p>
+    <div class="form-actions">
+      <a href="/app/tarifas/" class="btn btn--ghost">Gestionar artefactos →</a>
+    </div>
+  </div>
+
 </section>
 {% endblock %}
