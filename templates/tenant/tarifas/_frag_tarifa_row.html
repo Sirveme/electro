@@ -44,6 +44,24 @@
     </form>
   </td>
   <td>
+    <form hx-post="/app/tarifas/{{ item.origen }}/{{ item.codigo }}/frecuente"
+          hx-target="closest tr" hx-swap="outerHTML"
+          class="tarifa-toggle-form">
+      {% include 'components/csrf_input.html' %}
+      <button type="submit"
+              class="toggle-switch {{ 'is-on' if item.es_frecuente else 'is-off' }}"
+              role="switch"
+              aria-checked="{{ 'true' if item.es_frecuente else 'false' }}"
+              aria-label="{{ 'Frecuente, clic para quitar' if item.es_frecuente else 'No frecuente, clic para marcar' }}"
+              title="{{ 'Aparece como acceso rápido al empadronar' if item.es_frecuente else 'No aparece como acceso rápido' }}">
+        <span class="toggle-track" aria-hidden="true">
+          <span class="toggle-knob"></span>
+        </span>
+        <span class="toggle-label">{{ 'Sí' if item.es_frecuente else 'No' }}</span>
+      </button>
+    </form>
+  </td>
+  <td>
     {% if item.origen == 'propio' %}
       <span class="badge badge--info">propio</span>
     {% else %}
