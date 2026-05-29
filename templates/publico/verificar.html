@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Verificación de Recibo · electro</title>
+<link rel="stylesheet" href="/static/css/tokens.css?v=2">
+<link rel="stylesheet" href="/static/css/base.css?v=2">
+<style>
+  .verificar-page { max-width: 480px; margin: 40px auto; padding: 20px; }
+  .verificar-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    border-left: 4px solid var(--primary);
+  }
+  .verificar-card h1 { font-size: 1.2rem; margin: 0 0 8px; color: var(--text-strong); }
+  .verificar-numero { font-family: monospace; font-size: 1.4rem; font-weight: bold; color: var(--primary); }
+  .verificar-estado {
+    display: inline-block; padding: 4px 12px; border-radius: 12px;
+    font-weight: 600; font-size: 0.9rem; margin-top: 8px;
+  }
+  .estado-pagado { background: var(--success-soft); color: var(--success); }
+  .estado-pendiente { background: rgba(255,107,26,0.15); color: #FF6B1A; }
+  .estado-parcial { background: var(--primary-soft); color: var(--primary); }
+  .info-row { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .info-row:last-child { border-bottom: none; }
+  .info-label { color: var(--text-muted); }
+  .info-row span:last-child { text-align: right; }
+  .no-encontrado { text-align: center; color: var(--warning); padding: 40px 20px; }
+  .pie-prov { text-align: center; margin-top: 20px; color: var(--text-muted); font-size: 0.85rem; }
+  .pie-prov a { color: var(--primary); text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="verificar-page">
+
+  {% if encontrado %}
+  <div class="verificar-card">
+    <h1>Verificación de Recibo</h1>
+    <div class="verificar-numero">{{ recibo.numero_recibo }}</div>
+
+    <div class="verificar-estado
+                {%- if recibo.estado == 'pagado' %} estado-pagado
+                {%- elif recibo.estado == 'parcial' %} estado-parcial
+                {%- else %} estado-pendiente{% endif %}">
+      {% if recibo.estado == 'pagado' %}✓ PAGADO
+      {%- elif recibo.estado == 'parcial' %}● PAGO PARCIAL
+      {%- else %}○ PENDIENTE{% endif %}
+    </div>
+
+    <div style="margin-top: 20px;">
+      <div class="info-row">
+        <span class="info-label">Municipalidad</span>
+        <span>{{ recibo.nombre_municipalidad or '—' }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Período</span>
+        <span>{{ recibo.periodo_label }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Vivienda</span>
+        <span>{{ recibo.codigo_interno }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Comunidad</span>
+        <span>{{ recibo.comunidad }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Responsable</span>
+        <span>{{ recibo.jefe or '—' }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Monto total</span>
+        <span>S/ {{ "%.2f"|format(recibo.total) }}</span>
+      </div>
+      {% if recibo.pago_at %}
+      <div class="info-row">
+        <span class="info-label">Pagado el</span>
+        <span>{{ recibo.pago_at.strftime('%d/%m/%Y') }}</span>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% else %}
+  <div class="verificar-card">
+    <div class="no-encontrado">
+      <h1>Recibo no encontrado</h1>
+      <p>El número <strong>{{ numero }}</strong> no corresponde a ningún recibo en nuestro sistema.</p>
+    </div>
+  </div>
+  {% endif %}
+
+  <p class="pie-prov">
+    Sistema operado por <a href="https://perusistemas.pro" target="_blank" rel="noopener">Perú Sistemas Pro</a>
+  </p>
+</div>
+</body>
+</html>
