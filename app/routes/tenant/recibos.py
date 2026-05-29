@@ -37,34 +37,42 @@ def _pdf_response(pdf_bytes: bytes, filename: str, inline: bool = True) -> Respo
 async def lista_impresion(
     request: Request,
     user: CurrentUser = Depends(require_password_changed),
-    comunidad_id: int = Query(None),
-    desde: str = Query(None),
-    hasta: str = Query(None),
+    comunidad_id: str = Query(""),
+    desde: str = Query(""),
+    hasta: str = Query(""),
     estado: str = Query("pendiente"),
-    periodo_anio: int = Query(None),
-    periodo_mes: int = Query(None),
+    periodo_anio: str = Query(""),
+    periodo_mes: str = Query(""),
 ):
     if not user.puede("cobranza", "recibos", "ver"):
         raise HTTPException(403, "Sin permiso")
 
+    # Los parámetros llegan como string: un <select> vacío manda "" y un
+    # `int = Query(None)` devolvería 422. Se convierten manualmente.
+    comunidad_id_int = int(comunidad_id) if comunidad_id.strip().isdigit() else None
+    periodo_anio_int = int(periodo_anio) if periodo_anio.strip().isdigit() else None
+    periodo_mes_int = int(periodo_mes) if periodo_mes.strip().isdigit() else None
+    desde = desde.strip() or None
+    hasta = hasta.strip() or None
+
     where = ["v.activa = TRUE", "v.anulada_at IS NULL", "c.estado != 'anulada'"]
     params: dict = {}
-    if comunidad_id:
+    if comunidad_id_int:
         where.append("v.comunidad_id = :cid")
-        params["cid"] = comunidad_id
+        params["cid"] = comunidad_id_int
     if desde:
         where.append("v.codigo_interno >= :desde")
-        params["desde"] = desde.strip()
+        params["desde"] = desde
     if hasta:
         where.append("v.codigo_interno <= :hasta")
-        params["hasta"] = hasta.strip()
+        params["hasta"] = hasta
     if estado and estado != "todos":
         where.append("c.estado = :est")
         params["est"] = estado
-    if periodo_anio and periodo_mes:
+    if periodo_anio_int and periodo_mes_int:
         where.append("c.periodo_anio = :anio AND c.periodo_mes = :mes")
-        params["anio"] = periodo_anio
-        params["mes"] = periodo_mes
+        params["anio"] = periodo_anio_int
+        params["mes"] = periodo_mes_int
     where_sql = " AND ".join(where)
 
     async with tenant_session(user.tenant_schema) as ts:
@@ -101,9 +109,9 @@ async def lista_impresion(
         comunidades=[dict(c) for c in comunidades],
         cuotas=[dict(c) for c in cuotas],
         filtros={
-            "comunidad_id": comunidad_id,
+            "comunidad_id": comunidad_id_int,
             "desde": desde, "hasta": hasta, "estado": estado,
-            "periodo_anio": periodo_anio, "periodo_mes": periodo_mes,
+            "periodo_anio": periodo_anio_int, "periodo_mes": periodo_mes_int,
         },
     )
     return request.app.state.templates.TemplateResponse("tenant/recibos/lista_impresion.html", ctx)
@@ -118,10 +126,9 @@ async def descargar_pdf(
     if not user.puede("cobranza", "recibos", "ver"):
         raise HTTPException(403, "Sin permiso")
     base_url = str(request.base_url).rstrip("/")
-    env = request.app.state.templates.env
     async with tenant_session(user.tenant_schema) as ts:
         try:
-            pdf_bytes = await generar_pdf_recibo(env, ts, cuota_id, base_url)
+            pdf_bytes = await generar_pdf_recibo(ts, cuota_id, base_url)
         except ValueError:
             raise HTTPException(404, "Recibo no encontrado")
     return _pdf_response(pdf_bytes, f"recibo_{cuota_id}.pdf", inline=True)
@@ -146,10 +153,9 @@ async def descargar_lote_pdf(
         raise HTTPException(400, f"Máximo {MAX_LOTE} recibos por lote.")
 
     base_url = str(request.base_url).rstrip("/")
-    env = request.app.state.templates.env
     async with tenant_session(user.tenant_schema) as ts:
         try:
-            pdf_bytes = await generar_pdf_lote(env, ts, ids, base_url)
+            pdf_bytes = await generar_pdf_lote(ts, ids, base_url)
         except ValueError:
             raise HTTPException(404, "No hay recibos válidos")
     return _pdf_response(pdf_bytes, "recibos_lote.pdf", inline=False)
