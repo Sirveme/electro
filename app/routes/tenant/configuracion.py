@@ -11,6 +11,7 @@ from decimal import Decimal, InvalidOperation
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
+from sqlalchemy import text
 
 from app.context_processor import build_context
 from app.database import tenant_session
@@ -30,6 +31,35 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/app/configuracion")
 
 
+# Claves de config_municipio para la cabecera del recibo formal (zClaude-fix-17).
+_DATOS_RECIBO_KEYS = ("ruc", "direccion_municipalidad", "telefono_municipalidad", "email_municipalidad")
+
+
+async def _obtener_datos_recibo(ts) -> dict:
+    rows = (
+        await ts.execute(
+            text("SELECT clave, valor FROM config_municipio WHERE clave = ANY(:ks)"),
+            {"ks": list(_DATOS_RECIBO_KEYS)},
+        )
+    ).mappings().all()
+    out = {k: "" for k in _DATOS_RECIBO_KEYS}
+    for r in rows:
+        out[r["clave"]] = r["valor"] or ""
+    return out
+
+
+async def _guardar_datos_recibo(ts, valores: dict) -> None:
+    for clave in _DATOS_RECIBO_KEYS:
+        await ts.execute(
+            text(
+                "INSERT INTO config_municipio (clave, valor, tipo, descripcion) "
+                "VALUES (:k, :v, 'string', NULL) "
+                "ON CONFLICT (clave) DO UPDATE SET valor = EXCLUDED.valor"
+            ),
+            {"k": clave, "v": (valores.get(clave) or "").strip()},
+        )
+
+
 def _parse_decimal(raw: str, etiqueta: str) -> Decimal:
     try:
         return Decimal(str(raw).strip().replace(",", "."))
@@ -44,10 +74,10 @@ async def index_form(
 ):
     if not user.puede("config", "municipio", "editar"):
         raise HTTPException(403, "Sin permiso")
-    from sqlalchemy import text
     async with tenant_session(user.tenant_schema) as ts:
         config = await obtener_config_calculo(ts)
         branding = await obtener_branding(ts)
+        datos_muni = await _obtener_datos_recibo(ts)
         comunidades = (
             await ts.execute(
                 text(
@@ -64,6 +94,7 @@ async def index_form(
         "tenant/configuracion/index.html",
         build_context(
             request, user=user, config=config, branding_actual=branding,
+            datos_muni=datos_muni,
             comunidades=[dict(c) for c in comunidades],
         ),
     )
@@ -100,9 +131,13 @@ async def actualizar_branding(
     user: CurrentUser = Depends(require_password_changed),
     nombre_municipalidad: str = Form(""),
     nombre_corto: str = Form(""),
+    ruc: str = Form(""),
+    direccion_municipalidad: str = Form(""),
+    telefono_municipalidad: str = Form(""),
+    email_municipalidad: str = Form(""),
     logo: UploadFile = File(None),
 ):
-    """Sube logo a GCS (si viene) y guarda los nombres del municipio."""
+    """Sube logo a GCS (si viene) y guarda los nombres + datos de recibo del municipio."""
     if not user.puede("config", "municipio", "editar"):
         raise HTTPException(403, "Sin permiso")
 
@@ -138,6 +173,12 @@ async def actualizar_branding(
             nombre_municipalidad=(nombre_municipalidad or "").strip(),
             nombre_corto=(nombre_corto or "").strip(),
         )
+        await _guardar_datos_recibo(ts, {
+            "ruc": ruc,
+            "direccion_municipalidad": direccion_municipalidad,
+            "telefono_municipalidad": telefono_municipalidad,
+            "email_municipalidad": email_municipalidad,
+        })
         branding_actual = await obtener_branding(ts)
         await ts.commit()
 

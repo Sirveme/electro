@@ -764,6 +764,19 @@ async def ficha(
             )
         ).all()
 
+        # Cuotas/recibos de la vivienda (para enlazar al PDF A5 — zClaude-fix-17).
+        cuotas = (
+            await ts.execute(
+                text(
+                    "SELECT id, numero_recibo, periodo_anio, periodo_mes, "
+                    "       total, saldo_pendiente, estado "
+                    "FROM cuotas WHERE vivienda_id = :v AND estado != 'anulada' "
+                    "ORDER BY periodo_anio DESC, periodo_mes DESC LIMIT 36"
+                ),
+                {"v": vivienda.id},
+            )
+        ).mappings().all()
+
     return request.app.state.templates.TemplateResponse(
         "tenant/padron/ficha.html",
         build_context(
@@ -771,6 +784,7 @@ async def ficha(
             vivienda=vivienda, moradores=moradores,
             inventario_actual=inv_actual, inventario_historico=historico,
             eventos=eventos,
+            cuotas=[dict(c) for c in cuotas],
             motivos_baja=MOTIVOS_BAJA,
         ),
     )
