@@ -238,6 +238,40 @@
     </div>
   </div>
   </div>{# /card de tabs #}
+
+  {% if ctx.user | puede('cobranza', 'recibos', 'ver') %}
+  <div class="card">
+    <h2 class="card-titulo">Recibos</h2>
+    {% if cuotas | length == 0 %}
+      <p class="muted">Esta vivienda todavía no tiene recibos generados.</p>
+    {% else %}
+    <table class="table">
+      <thead><tr><th>N° Recibo</th><th>Período</th><th>Total</th><th>Estado</th><th></th></tr></thead>
+      <tbody>
+        {% for c in cuotas %}
+        <tr>
+          <td><code>{{ c.numero_recibo or '—' }}</code></td>
+          <td>{{ '%02d' | format(c.periodo_mes) }}/{{ c.periodo_anio }}</td>
+          <td>S/ {{ '%.2f' | format(c.total) }}</td>
+          <td>
+            {% if c.estado == 'pagado' %}<span class="badge badge-ok">pagado</span>
+            {% else %}<span class="badge">{{ c.estado }}</span>{% endif %}
+          </td>
+          <td>
+            {% if c.numero_recibo %}
+              <a href="/app/recibos/cuota/{{ c.id }}.pdf" target="_blank" rel="noopener"
+                 class="btn btn--ghost btn--sm" hx-boost="false">Ver recibo PDF</a>
+            {% else %}
+              <span class="muted small">Sin número</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </div>
+  {% endif %}
 </section>
 
 {% if (ctx.user | puede('viviendas', 'admin', 'anular')) and not vivienda.anulada_at %}
