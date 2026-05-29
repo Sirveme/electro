@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% from 'components/icons.html' import icon_cobrar, icon_ver, icon_buscar,
-  icon_ubicacion, icon_check, icon_alerta %}
+  icon_ubicacion, icon_check, icon_alerta, icon_recibo %}
 {% block title %}Cobranza{% endblock %}
 {% block content %}
 <section class="page cobranza-tablero">
@@ -100,6 +100,12 @@
                     onclick="window.cobranzaAbrirCobrar(this.dataset.codigo, this.dataset.jefe)">
               {{ icon_cobrar() }} Cobrar
             </button>
+          {% endif %}
+          {% if v.recibo_cuota_id %}
+          <a href="/app/recibos/cuota/{{ v.recibo_cuota_id }}.pdf" target="_blank" rel="noopener"
+             class="btn btn--icono" title="Ver recibo PDF" hx-boost="false">
+            {{ icon_recibo() }}
+          </a>
           {% endif %}
           <a href="/app/padron/{{ v.codigo_interno }}" class="btn btn--icono" title="Ver ficha">
             {{ icon_ver() }}
