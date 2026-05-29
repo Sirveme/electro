@@ -159,11 +159,11 @@ async def crear_vivienda_completa(
             text(
                 """
                 INSERT INTO moradores (
-                    vivienda_id, dni, nombre_completo, fecha_nacimiento, sexo, telefono,
+                    vivienda_id, dni, nombre_completo, fecha_nacimiento, sexo, telefono, whatsapp,
                     es_jefe_familia, es_responsable_pago, acceso_portal, access_code,
                     debe_cambiar_clave, activo
                 ) VALUES (
-                    :v, :d, :n, :fn, :sx, :tel, TRUE, TRUE, :ap, :ac, TRUE, TRUE
+                    :v, :d, :n, :fn, :sx, :tel, :wa, TRUE, TRUE, :ap, :ac, TRUE, TRUE
                 )
                 """
             ),
@@ -174,6 +174,7 @@ async def crear_vivienda_completa(
                 "fn": _parse_fecha(jefe_familia.get("fecha_nacimiento")),
                 "sx": jefe_familia.get("sexo"),
                 "tel": jefe_familia.get("telefono"),
+                "wa": jefe_familia.get("whatsapp") or jefe_familia.get("telefono"),
                 "ap": bool(jefe_familia.get("acceso_portal")),
                 "ac": jefe_hash,
             },
@@ -185,10 +186,10 @@ async def crear_vivienda_completa(
                 text(
                     """
                     INSERT INTO moradores (
-                        vivienda_id, dni, nombre_completo, fecha_nacimiento, sexo, telefono,
+                        vivienda_id, dni, nombre_completo, fecha_nacimiento, sexo, telefono, whatsapp,
                         es_jefe_familia, es_responsable_pago, activo
                     ) VALUES (
-                        :v, :d, :n, :fn, :sx, :tel, FALSE, FALSE, TRUE
+                        :v, :d, :n, :fn, :sx, :tel, :wa, FALSE, FALSE, TRUE
                     )
                     """
                 ),
@@ -199,21 +200,49 @@ async def crear_vivienda_completa(
                     "fn": _parse_fecha(segundo_morador.get("fecha_nacimiento")),
                     "sx": segundo_morador.get("sexo"),
                     "tel": segundo_morador.get("telefono"),
+                    "wa": segundo_morador.get("whatsapp") or segundo_morador.get("telefono"),
                 },
             )
 
-        # 6. Inventario
+        # 6. Inventario — fallas individuales NO abortan la vivienda
+        logger.info(
+            "Procesando %d artefactos para vivienda_id=%s",
+            len(artefactos_validos), vivienda_id,
+        )
+        inventarios_creados = 0
+        inventarios_fallidos: list[dict] = []
         for art in artefactos_validos:
-            await agregar_artefacto(
-                session, schema_name,
-                vivienda_id=vivienda_id,
-                artefacto_origen=art["origen"],
-                artefacto_codigo=art["codigo"],
-                cantidad=art["cantidad"],
-                user_id=user_id,
-                motivo="empadronamiento_inicial",
-                fecha_alta=date.today(),
+            logger.info(
+                "Agregando artefacto origen=%s codigo=%s cantidad=%s",
+                art["origen"], art["codigo"], art["cantidad"],
             )
+            try:
+                new_inv_id = await agregar_artefacto(
+                    session, schema_name,
+                    vivienda_id=vivienda_id,
+                    artefacto_origen=art["origen"],
+                    artefacto_codigo=art["codigo"],
+                    cantidad=art["cantidad"],
+                    user_id=user_id,
+                    motivo="empadronamiento_inicial",
+                    fecha_alta=date.today(),
+                )
+                logger.info("Artefacto agregado inv_id=%s", new_inv_id)
+                inventarios_creados += 1
+            except InventarioError as exc:
+                logger.exception(
+                    "Artefacto omitido en empadronamiento: %s/%s — %s",
+                    art["origen"], art["codigo"], exc,
+                )
+                inventarios_fallidos.append({
+                    "origen": art["origen"],
+                    "codigo": art["codigo"],
+                    "error": str(exc),
+                })
+        logger.info(
+            "Empadronamiento %s: %d artefactos OK, %d fallidos",
+            codigo_interno, inventarios_creados, len(inventarios_fallidos),
+        )
 
         # 7. Foto en histórico
         if foto_url:
@@ -232,7 +261,9 @@ async def crear_vivienda_completa(
             "codigo_interno": codigo_interno,
             "comunidad_id": datos_vivienda["comunidad_id"],
             "n_moradores": 2 if segundo_morador else 1,
-            "n_artefactos": len(artefactos_validos),
+            "n_artefactos_pedidos": len(artefactos_validos),
+            "n_artefactos_creados": inventarios_creados,
+            "artefactos_fallidos": inventarios_fallidos,
             "tiene_foto": bool(foto_url),
             "tiene_gps": bool(datos_vivienda.get("gps_lat")),
         }

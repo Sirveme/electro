@@ -122,8 +122,12 @@ async def calcular_cuota(
     vivienda = (
         await session.execute(
             text(
-                "SELECT v.id, v.codigo_interno, v.comunidad_id, v.estado_servicio "
-                "FROM viviendas v WHERE v.id = :id"
+                "SELECT v.id, v.codigo_interno, v.comunidad_id, v.estado_servicio, "
+                "       COALESCE(v.tiene_subvencion, TRUE) AS tiene_subvencion, "
+                "       COALESCE(c.alumbrado_publico_mensual, 0) AS alumbrado_publico_mensual "
+                "FROM viviendas v "
+                "LEFT JOIN comunidades c ON c.id = v.comunidad_id "
+                "WHERE v.id = :id"
             ),
             {"id": vivienda_id},
         )
@@ -137,7 +141,10 @@ async def calcular_cuota(
         )
 
     config = await obtener_config_calculo(session)
-    cargo_fijo = _to_decimal(config.get("cargo_fijo_mensual", 0))
+    # zClaude-fix-16: el "alumbrado público" (cargo fijo por comunidad) reemplaza
+    # al antiguo cargo_fijo_mensual por municipio. Se sigue almacenando en la
+    # columna cargo_fijo del snapshot para no romper recibos/PDF existentes.
+    cargo_fijo = _to_decimal(vivienda.alumbrado_publico_mensual)
     adicional_por_morador = _to_decimal(config.get("adicional_por_morador", 0))
 
     n_moradores_row = (
@@ -166,12 +173,20 @@ async def calcular_cuota(
     monto_aparatos = sum((_to_decimal(it["importe"]) for it in inventario), Decimal("0"))
 
     adicional_morador_total = adicional_por_morador * Decimal(n_moradores)
-    subtotal = cargo_fijo + adicional_morador_total + monto_aparatos
-    subtotal = subtotal.quantize(Decimal("0.01"))
+    # CONSUMO PRIVADO = adicional por moradores + aparatos. El alumbrado público
+    # (cargo_fijo) NO forma parte del consumo y por tanto NO recibe subvención.
+    consumo_privado = (adicional_morador_total + monto_aparatos).quantize(Decimal("0.01"))
+    subtotal = (cargo_fijo + consumo_privado).quantize(Decimal("0.01"))
 
-    subsidio = await obtener_subsidio_para_comunidad(
-        session, vivienda.comunidad_id, fecha_corte
-    )
+    # zClaude-fix-16: la "subvención" reutiliza el subsidio vigente de la
+    # comunidad. La vivienda puede excluirse vía tiene_subvencion=FALSE (opt-out).
+    # El descuento se aplica SOLO sobre el consumo privado, no sobre el alumbrado.
+    tiene_subvencion = bool(vivienda.tiene_subvencion)
+    subsidio = None
+    if tiene_subvencion:
+        subsidio = await obtener_subsidio_para_comunidad(
+            session, vivienda.comunidad_id, fecha_corte
+        )
     subsidio_monto = Decimal("0")
     subsidio_id: Optional[int] = None
     subsidio_nombre: Optional[str] = None
@@ -182,7 +197,7 @@ async def calcular_cuota(
         subsidio_nombre = subsidio["nombre"]
         subsidio_porcentaje = _to_decimal(subsidio["porcentaje"])
         subsidio_base_legal = subsidio["base_legal"]
-        subsidio_monto = (subtotal * subsidio_porcentaje / Decimal(100)).quantize(Decimal("0.01"))
+        subsidio_monto = (consumo_privado * subsidio_porcentaje / Decimal(100)).quantize(Decimal("0.01"))
 
     total = (subtotal - subsidio_monto).quantize(Decimal("0.01"))
     if total < Decimal("0"):

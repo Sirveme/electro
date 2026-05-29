@@ -51,6 +51,7 @@ async def listar_unificado(session: AsyncSession) -> list[dict]:
                         WHEN cfg.habilitado IS NULL THEN ac.activo_default
                         ELSE cfg.habilitado
                     END AS habilitado,
+                    COALESCE(cfg.es_frecuente, FALSE) AS es_frecuente,
                     ac.orden
                 FROM public.artefacto_catalogo ac
                 LEFT JOIN artefacto_config cfg ON cfg.catalogo_id = ac.id
@@ -63,6 +64,7 @@ async def listar_unificado(session: AsyncSession) -> list[dict]:
                     NULL AS icono,
                     tarifa_mensual AS tarifa,
                     habilitado,
+                    COALESCE(es_frecuente, FALSE) AS es_frecuente,
                     orden
                 FROM artefacto_propio
                 ORDER BY habilitado DESC, categoria, orden, nombre
@@ -152,6 +154,70 @@ async def toggle_catalogo(session: AsyncSession, codigo: str) -> bool:
             """
         ),
         {"cid": catalogo_id, "t": tarifa_actual, "h": nuevo},
+    )
+    return nuevo
+
+
+async def toggle_frecuente_catalogo(session: AsyncSession, codigo: str) -> bool:
+    """Toggle del flag es_frecuente de un artefacto de catálogo. Retorna nuevo valor.
+
+    UPSERT en artefacto_config preservando tarifa/habilitado actuales.
+    """
+    catalogo_id = await _catalogo_id_por_codigo(session, codigo)
+    if not catalogo_id:
+        raise TarifaError(f"Artefacto de catálogo no encontrado: {codigo}")
+
+    row = (
+        await session.execute(
+            text(
+                """
+                SELECT
+                    CASE
+                        WHEN cfg.habilitado IS NULL THEN ac.activo_default
+                        ELSE cfg.habilitado
+                    END AS habilitado,
+                    COALESCE(cfg.tarifa_mensual, ac.tarifa_sugerida) AS tarifa,
+                    COALESCE(cfg.es_frecuente, FALSE) AS es_frecuente
+                FROM public.artefacto_catalogo ac
+                LEFT JOIN artefacto_config cfg ON cfg.catalogo_id = ac.id
+                WHERE ac.codigo = :c
+                """
+            ),
+            {"c": codigo},
+        )
+    ).first()
+    nuevo = not (bool(row.es_frecuente) if row else False)
+    habilitado_actual = bool(row.habilitado) if row else True
+    tarifa_actual = row.tarifa if row else Decimal("0")
+
+    await session.execute(
+        text(
+            """
+            INSERT INTO artefacto_config (catalogo_id, tarifa_mensual, habilitado, es_frecuente)
+            VALUES (:cid, :t, :h, :f)
+            ON CONFLICT (catalogo_id) DO UPDATE
+                SET es_frecuente = EXCLUDED.es_frecuente
+            """
+        ),
+        {"cid": catalogo_id, "t": tarifa_actual, "h": habilitado_actual, "f": nuevo},
+    )
+    return nuevo
+
+
+async def toggle_frecuente_propio(session: AsyncSession, codigo: str) -> bool:
+    """Toggle del flag es_frecuente de un artefacto propio. Retorna nuevo valor."""
+    row = (
+        await session.execute(
+            text("SELECT COALESCE(es_frecuente, FALSE) AS es_frecuente FROM artefacto_propio WHERE codigo = :c"),
+            {"c": codigo},
+        )
+    ).first()
+    if not row:
+        raise TarifaError(f"Artefacto propio '{codigo}' no encontrado")
+    nuevo = not bool(row.es_frecuente)
+    await session.execute(
+        text("UPDATE artefacto_propio SET es_frecuente = :f WHERE codigo = :c"),
+        {"f": nuevo, "c": codigo},
     )
     return nuevo
 
