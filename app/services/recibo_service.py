@@ -384,45 +384,54 @@ def _build_recibo_flowables(data: dict, estilos: dict) -> list:
             f"S/ {data['adicional_morador']:.2f}",
             f"S/ {data['subtotal_moradores']:.2f}",
         ])
-    tabla_cargos = Table(cargos_data, colWidths=[14 * mm, 78 * mm, 18 * mm, 24 * mm])
-    tabla_cargos.setStyle(TableStyle([
+    # --- Totales: en la MISMA tabla que los cargos, así la columna "Importe"
+    #     comparte ancho y todos los montos quedan alineados a la derecha. ---
+    n_cargos = len(cargos_data)  # header + filas de cargo
+    extra_rows = [["Subtotal consumo:", "", "", f"S/ {data['consumo_privado']:.2f}"]]
+    if data["descuento"] > 0:
+        extra_rows.append([f"Subvención ({data['subsidio_pct']:.0f}%):", "", "",
+                           f"S/ -{data['descuento']:.2f}"])
+        extra_rows.append(["Consumo neto:", "", "", f"S/ {data['consumo_neto']:.2f}"])
+    extra_rows.append(["", "", "", ""])  # separador visual
+    extra_rows.append(["TOTAL A PAGAR:", "", "", f"S/ {data['total']:.2f}"])
+
+    cargos_completo = cargos_data + extra_rows
+    total_idx = len(cargos_completo) - 1
+
+    estilo_cargos = [
         ("BACKGROUND", (0, 0), (-1, 0), COLOR_PRIMARY),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
         ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
         ("FONTSIZE", (0, 0), (-1, 0), 8),
         ("ALIGN", (0, 0), (-1, 0), "CENTER"),
-        ("ALIGN", (0, 1), (0, -1), "CENTER"),
-        ("ALIGN", (2, 1), (3, -1), "RIGHT"),
-        ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
-        ("FONTSIZE", (0, 1), (-1, -1), 8),
-        ("LINEBELOW", (0, 1), (-1, -1), 0.25, COLOR_BORDER),
+        # filas de cargo
+        ("ALIGN", (0, 1), (0, n_cargos - 1), "CENTER"),
+        ("ALIGN", (2, 1), (3, n_cargos - 1), "RIGHT"),
+        ("FONTNAME", (0, 1), (-1, n_cargos - 1), "Helvetica"),
+        ("FONTSIZE", (0, 1), (-1, n_cargos - 1), 8),
+        ("LINEBELOW", (0, 0), (-1, 0), 1, COLOR_PRIMARY),
+        ("LINEBELOW", (0, 1), (-1, n_cargos - 1), 0.25, COLOR_BORDER),
+        # filas de totales: etiqueta (cols 0-2 fusionadas) a la derecha + monto col 3
+        ("ALIGN", (0, n_cargos), (2, total_idx), "RIGHT"),
+        ("ALIGN", (3, n_cargos), (3, total_idx), "RIGHT"),
+        ("FONTNAME", (0, n_cargos), (-1, total_idx - 1), "Helvetica"),
+        ("FONTSIZE", (0, n_cargos), (-1, total_idx - 1), 8.5),
+        ("FONTNAME", (0, total_idx), (-1, total_idx), "Helvetica-Bold"),
+        ("FONTSIZE", (0, total_idx), (-1, total_idx), 12),
+        ("TEXTCOLOR", (0, total_idx), (-1, total_idx), COLOR_PRIMARY),
+        ("LINEABOVE", (3, total_idx), (3, total_idx), 1, COLOR_PRIMARY),
         ("LEFTPADDING", (0, 0), (-1, -1), 4),
         ("RIGHTPADDING", (0, 0), (-1, -1), 4),
         ("TOPPADDING", (0, 0), (-1, -1), 3),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-    ]))
+    ]
+    # Fusionar las 3 primeras celdas de cada fila de totales para la etiqueta.
+    for r in range(n_cargos, total_idx + 1):
+        estilo_cargos.append(("SPAN", (0, r), (2, r)))
 
-    # --- Totales ---
-    totales_data = [["Subtotal consumo:", f"S/ {data['consumo_privado']:.2f}"]]
-    if data["descuento"] > 0:
-        totales_data.append([f"Subvención ({data['subsidio_pct']:.0f}%):",
-                             f"S/ -{data['descuento']:.2f}"])
-        totales_data.append(["Consumo neto:", f"S/ {data['consumo_neto']:.2f}"])
-    totales_data.append(["", ""])
-    totales_data.append(["TOTAL A PAGAR:", f"S/ {data['total']:.2f}"])
-    totales_table = Table(totales_data, colWidths=[80 * mm, 28 * mm], hAlign="RIGHT")
-    totales_table.setStyle(TableStyle([
-        ("ALIGN", (0, 0), (-1, -1), "RIGHT"),
-        ("FONTNAME", (0, 0), (-1, -2), "Helvetica"),
-        ("FONTSIZE", (0, 0), (-1, -2), 8.5),
-        ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
-        ("FONTSIZE", (0, -1), (-1, -1), 12),
-        ("TEXTCOLOR", (0, -1), (-1, -1), COLOR_PRIMARY),
-        ("LINEABOVE", (0, -1), (-1, -1), 1, COLOR_PRIMARY),
-        ("TOPPADDING", (0, 0), (-1, -1), 1),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
-    ]))
+    tabla_cargos = Table(cargos_completo, colWidths=[14 * mm, 78 * mm, 18 * mm, 24 * mm])
+    tabla_cargos.setStyle(TableStyle(estilo_cargos))
 
     # --- Importe en letras ---
     letras = _num2letras(data["total"])
@@ -465,8 +474,7 @@ def _build_recibo_flowables(data: dict, estilos: dict) -> list:
     flow = [
         cabecera, Spacer(1, 4 * mm),
         datos_table, Spacer(1, 4 * mm),
-        tabla_cargos, Spacer(1, 3 * mm),
-        totales_table,
+        tabla_cargos,
     ]
     if data.get("subsidio_ord"):
         flow.append(Spacer(1, 2 * mm))
