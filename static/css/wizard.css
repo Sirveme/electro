@@ -137,3 +137,8 @@
 }
 .artefacto-resultado:hover { background: rgba(27, 79, 245, 0.08); }
 .artefacto-resultado:last-child { border-bottom: none; }
+
+/* zClaude-fix-19a: distinguir artefactos NO frecuentes agregados en el grid */
+.artefacto-card[data-frecuente="0"] {
+  border-left: 3px solid var(--warning);
+}

@@ -1,0 +1,114 @@
+/* electro — topbar productivo + sesión empadronamiento (zClaude-fix-19a) */
+
+.topbar-acciones {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-right: 10px;
+}
+
+.btn--topbar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  background: var(--primary-soft);
+  border: 1px solid rgba(27, 79, 245, 0.35);
+  color: var(--primary);
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s;
+}
+.btn--topbar:hover { background: var(--primary); color: #fff; }
+.btn--topbar svg { flex: 0 0 auto; }
+
+/* En pantallas chicas, ocultar el texto y dejar solo el ícono. */
+@media (max-width: 560px) {
+  .btn--topbar-label { display: none; }
+  .btn--topbar { padding: 7px 9px; }
+}
+
+.topbar-cobrar { position: relative; }
+.dropdown-cobrar {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 320px;
+  max-width: 88vw;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px;
+  box-shadow: var(--shadow-lg);
+  z-index: 120;
+}
+.dropdown-cobrar.hidden { display: none; }
+.dropdown-cobrar input {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-base);
+  color: var(--text);
+  font-size: 0.92rem;
+}
+.dropdown-resultados { margin-top: 6px; max-height: 280px; overflow-y: auto; }
+.dropdown-item {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 10px;
+  text-decoration: none;
+  color: var(--text);
+  border-radius: var(--radius-sm);
+}
+.dropdown-item:hover { background: rgba(27, 79, 245, 0.08); }
+.dropdown-item strong { color: var(--primary); font-size: 0.9rem; }
+.dropdown-item span { font-size: 0.85rem; }
+.dropdown-item small { color: var(--text-muted); font-size: 0.75rem; }
+.dropdown-empty { padding: 10px; color: var(--text-muted); text-align: center; font-size: 0.85rem; }
+
+/* Barra de zona activa en el slim paso 1 */
+.sesion-zona-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  background: var(--primary-soft);
+  border: 1px solid rgba(27, 79, 245, 0.3);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  font-size: 0.9rem;
+}
+
+/* Banner de pendientes offline reforzado */
+.pendientes-banner,
+.banner-pendientes-offline {
+  background: rgba(255, 107, 26, 0.12);
+  border: 1px solid rgba(255, 107, 26, 0.35);
+  border-left: 4px solid var(--warning);
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.pendientes-banner.hidden { display: none; }
+.pendientes-banner .pendientes-link,
+.banner-pendientes-offline .banner-action {
+  margin-left: auto;
+  color: var(--primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+.pendientes-banner .pendientes-link:hover,
+.banner-pendientes-offline .banner-action:hover { text-decoration: underline; }
+
+.pendientes-banner .banner-icon { color: var(--warning); display: inline-flex; }
+.pendientes-banner .banner-muted { color: var(--text-muted); font-size: 0.85rem; display: block; }
