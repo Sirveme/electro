@@ -1,0 +1,51 @@
+{# Modal de sesión de empadronamiento. Se inyecta en el <body> desde el topbar
+   (fetch a /app/padron/sesion/modal). Reutiliza .modal-inline de padron.css. #}
+<div id="modal-sesion-empadronamiento" class="modal-inline hidden" aria-hidden="true">
+  <div class="modal-inline-card">
+    <h2>Iniciar sesión de empadronamiento</h2>
+    <p class="muted">Configura una vez la zona; podrás empadronar varias viviendas sin repetir estos datos.</p>
+
+    <form id="form-iniciar-sesion" onsubmit="return window.iniciarSesionEmpadronamiento(event)">
+      {% include 'components/csrf_input.html' %}
+
+      <div class="form-field">
+        <label class="form-label" for="ses-comunidad">Comunidad *</label>
+        <select id="ses-comunidad" name="comunidad_id" required onchange="window.actualizarReferenteSesion()">
+          <option value="">— Selecciona —</option>
+          {% for c in comunidades %}
+          <option value="{{ c.id }}"
+                  data-referente-id="{{ c.referente_principal_id or '' }}"
+                  data-referente-nombre="{{ c.referente_nombre or '' }}">
+            {{ c.nombre }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-field">
+        <label class="form-label" for="ses-referente-nombre">Referente que avala</label>
+        <input type="hidden" id="ses-referente-id" name="referente_id">
+        <input type="text" id="ses-referente-nombre" class="readonly-input" readonly
+               placeholder="Selecciona una comunidad">
+        <small class="form-hint">Se asigna automáticamente desde la comunidad.</small>
+      </div>
+
+      <div class="form-field">
+        <label class="form-label" for="ses-fuente">Fuente de validación *</label>
+        <input type="text" id="ses-fuente" name="fuente_validacion" required list="ses-fuentes-list"
+               placeholder="Ej. Acta de asamblea, padrón vecinal…">
+        <datalist id="ses-fuentes-list">
+          <option value="Padrón parroquial">
+          <option value="Acta de asamblea">
+          <option value="Constancia de posesión">
+          <option value="Testimonio verbal">
+        </datalist>
+      </div>
+
+      <div class="form-actions">
+        <button type="button" class="btn btn--ghost" onclick="window.cerrarModalSesion()">Cancelar</button>
+        <button type="submit" class="btn btn--primary">Iniciar empadronamiento</button>
+      </div>
+    </form>
+  </div>
+</div>

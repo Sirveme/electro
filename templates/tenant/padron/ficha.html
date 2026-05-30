@@ -64,15 +64,59 @@
     {% if vivienda.direccion_textual and vivienda.direccion_textual != 'None' %}
       <p><strong>Dirección:</strong> {{ vivienda.direccion_textual }}</p>
     {% endif %}
-    {% if vivienda.gps_lat and vivienda.gps_lng %}
-      <p><strong>GPS:</strong>
-        <a href="https://www.google.com/maps?q={{ vivienda.gps_lat }},{{ vivienda.gps_lng }}" target="_blank" rel="noopener">
+    <p id="gps-ficha-linea">
+      <strong>GPS:</strong>
+      {% if vivienda.gps_lat and vivienda.gps_lng %}
+        <a id="gps-ficha-link" href="https://www.google.com/maps?q={{ vivienda.gps_lat }},{{ vivienda.gps_lng }}" target="_blank" rel="noopener">
           {{ vivienda.gps_lat }}, {{ vivienda.gps_lng }}
         </a>
-        {% if vivienda.gps_precision_metros %}<span class="muted">± {{ vivienda.gps_precision_metros }} m</span>{% endif %}
-      </p>
-    {% endif %}
+        {% if vivienda.gps_precision_metros %}<span class="muted" id="gps-ficha-prec">± {{ vivienda.gps_precision_metros }} m</span>{% endif %}
+      {% else %}
+        <span class="muted" id="gps-ficha-vacio">Sin ubicación capturada</span>
+      {% endif %}
+      {% if (ctx.user | puede('viviendas', 'admin', 'editar')) and not vivienda.anulada_at %}
+        <button type="button" class="btn btn--ghost btn--sm" id="btn-gps-ficha"
+                onclick="window.capturarGpsFicha()">
+          {% if vivienda.gps_lat %}Recapturar GPS{% else %}Capturar GPS{% endif %}
+        </button>
+        {% if not vivienda.gps_lat %}
+        <small class="muted" style="display:block">💡 Si estás en la vivienda con señal, captura su ubicación.</small>
+        {% endif %}
+      {% endif %}
+    </p>
   </div>
+
+  {% if (ctx.user | puede('viviendas', 'admin', 'editar')) and not vivienda.anulada_at %}
+  <script src="/static/js/geolocation.js" defer></script>
+  <script>
+    window.capturarGpsFicha = async function () {
+      var btn = document.getElementById('btn-gps-ficha');
+      var prev = btn.textContent;
+      btn.disabled = true; btn.textContent = 'Capturando…';
+      try {
+        var pos = await window.geo.captureCurrent();
+        var fd = new FormData();
+        fd.append('gps_lat', pos.lat);
+        fd.append('gps_lng', pos.lng);
+        fd.append('gps_precision', pos.accuracyMeters);
+        fd.append('_csrf', '{{ ctx.csrf_token }}');
+        var resp = await fetch('/app/padron/{{ vivienda.codigo_interno }}/gps',
+          { method: 'POST', body: fd, credentials: 'same-origin' });
+        var data = await resp.json();
+        if (resp.ok && data.ok) {
+          if (window.electroToast) window.electroToast('Ubicación guardada.', 'success');
+          setTimeout(function () { window.location.reload(); }, 600);
+        } else {
+          btn.disabled = false; btn.textContent = prev;
+          window.appModal.alert('Error', (data && data.message) || 'No se pudo guardar el GPS.');
+        }
+      } catch (err) {
+        btn.disabled = false; btn.textContent = prev;
+        if (window.electroToast) window.electroToast('Sin GPS: ' + (err.message || 'no disponible'), 'warning', 4000);
+      }
+    };
+  </script>
+  {% endif %}
 
   {% if (ctx.user | puede('viviendas', 'admin', 'editar')) and not vivienda.anulada_at %}
   <div class="card">

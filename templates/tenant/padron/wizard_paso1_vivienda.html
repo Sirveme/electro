@@ -3,17 +3,37 @@
 {% block content %}
 <section class="page">
   <header class="wizard-progress">
-    <span class="wizard-progress-step wizard-progress-step--active">1. Vivienda</span>
+    <span class="wizard-progress-step wizard-progress-step--active">1. {% if sesion %}Ubicación{% else %}Vivienda{% endif %}</span>
     <span class="wizard-progress-step">2. Jefe</span>
     <span class="wizard-progress-step">3. Segundo morador</span>
     <span class="wizard-progress-step">4. Inventario y foto</span>
   </header>
 
+  {% if sesion %}
+  <div class="sesion-zona-bar">
+    <div>
+      <strong>Empadronando en:</strong> {{ sesion.comunidad_nombre }}
+      {% if sesion.referente_nombre %} · Referente: {{ sesion.referente_nombre }}{% endif %}
+      {% if sesion.fuente_validacion %} · {{ sesion.fuente_validacion }}{% endif %}
+    </div>
+    <button type="button" class="btn btn--ghost btn--sm" onclick="window.cambiarZonaEmpadronamiento()">
+      Cambiar zona
+    </button>
+  </div>
+  <h1 class="page-title">Ubicación de la vivienda</h1>
+  {% else %}
   <h1 class="page-title">Datos de la vivienda</h1>
+  {% endif %}
 
   <form method="post" action="/app/padron/nuevo/paso1" class="form">
     {% include 'components/csrf_input.html' %}
 
+    {% if sesion %}
+      {# Zona desde la sesión: viaja oculta, no se vuelve a pedir. #}
+      <input type="hidden" name="comunidad_id" value="{{ sesion.comunidad_id }}">
+      <input type="hidden" name="referente_id" value="{{ sesion.referente_id or '' }}">
+      <input type="hidden" name="fuente_validacion" value="{{ sesion.fuente_validacion or '' }}">
+    {% else %}
     <label class="form-field">
       <span class="form-label">Comunidad</span>
       <select name="comunidad_id" id="comunidad-select" required
@@ -51,6 +71,7 @@
         <option value="Testimonio verbal">
       </datalist>
     </label>
+    {% endif %}
 
     <label class="form-field">
       <span class="form-label">Referencia física (obligatoria)</span>
@@ -65,22 +86,26 @@
     </label>
 
     <fieldset class="gps-field">
-      <legend>Geolocalización</legend>
+      <legend>Geolocalización (opcional)</legend>
+      <p class="muted small">💡 Si tienes señal, captura el GPS ahora. Es opcional; puedes hacerlo luego desde la ficha.</p>
       <input type="hidden" id="gps_lat" name="gps_lat" value="{{ datos.paso1.gps_lat if datos.paso1 else '' }}">
       <input type="hidden" id="gps_lng" name="gps_lng" value="{{ datos.paso1.gps_lng if datos.paso1 else '' }}">
       <input type="hidden" id="gps_precision" name="gps_precision" value="{{ datos.paso1.gps_precision if datos.paso1 else '' }}">
-      <button type="button" class="btn btn--ghost"
+      <button type="button" class="btn btn--ghost" id="btn-gps"
         _="on click
-            set me.textContent to 'Capturando...'
+            set me.textContent to 'Capturando…'
+            set me.disabled to true
             call window.geo.captureCurrent()
             set #gps_lat.value to it.lat
             set #gps_lng.value to it.lng
             set #gps_precision.value to it.accuracyMeters
             set #gps-display.textContent to it.lat + ', ' + it.lng + ' (± ' + it.accuracyMeters + ' m)'
-            set me.textContent to 'Capturar GPS de nuevo'
+            set me.textContent to 'Recapturar GPS'
+            set me.disabled to false
             catch err
             set me.textContent to 'Capturar GPS'
-            call window.appModal.alert('Error GPS', err.message, {tipo:'error'})">Capturar GPS</button>
+            set me.disabled to false
+            if window.electroToast then window.electroToast('Sin GPS. Puedes capturarlo después desde la ficha.', 'warning', 4000) end">Capturar GPS</button>
       <span id="gps-display" class="muted">
         {% if datos.paso1 and datos.paso1.gps_lat %}
           {{ datos.paso1.gps_lat }}, {{ datos.paso1.gps_lng }}
@@ -101,14 +126,12 @@
 </section>
 <script src="/static/js/geolocation.js" defer></script>
 <script>
-  // Al elegir comunidad, autocompletar el referente avalador configurado en ella.
-  // Offline-safe: sin fetch, usa el data-referente-id ya serializado en el option.
+  // Autollenado de referente al elegir comunidad (solo modo NO sesión).
   window.autoLlenarReferente = function (sel) {
     var opt = sel && sel.options[sel.selectedIndex];
     var refId = opt ? (opt.getAttribute('data-referente-id') || '') : '';
     var refSel = document.getElementById('referente-select');
     if (!refSel) return;
-    // Solo autollenar si el referente existe en la lista; si no, dejar lo elegido.
     if (refId && refSel.querySelector('option[value="' + refId + '"]')) {
       refSel.value = refId;
     }

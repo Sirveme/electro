@@ -3,10 +3,14 @@
 {% block content %}
 <section class="page">
   <div id="pendientes-banner" class="pendientes-banner hidden">
-    <span>
-      Tienes <strong id="pendientes-count">0</strong> empadronamiento(s) pendientes de sincronizar.
+    <span class="banner-icon" aria-hidden="true">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
     </span>
-    <a href="/app/sync" class="pendientes-link">Ver cola →</a>
+    <span>
+      <strong>Tienes <span id="pendientes-count">0</span> empadronamiento(s) sin sincronizar.</strong>
+      <span class="banner-muted">Estos registros aún no están en el sistema central.</span>
+    </span>
+    <a href="/app/sync" class="pendientes-link">Sincronizar ahora →</a>
   </div>
 
   <div id="lista-actualizar-banner" class="lista-actualizar-banner hidden">
