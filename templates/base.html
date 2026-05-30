@@ -28,12 +28,13 @@
 <link rel="stylesheet" href="/static/css/components.css?v=3">
 <link rel="stylesheet" href="/static/css/menu.css?v=2">
 <link rel="stylesheet" href="/static/css/modal.css?v=3">
-<link rel="stylesheet" href="/static/css/wizard.css?v=4">
+<link rel="stylesheet" href="/static/css/wizard.css?v=5">
 <link rel="stylesheet" href="/static/css/padron.css?v=6">
 <link rel="stylesheet" href="/static/css/tarifas.css?v=2">
 <link rel="stylesheet" href="/static/css/cobranza.css?v=4">
 <link rel="stylesheet" href="/static/css/reportes.css?v=1">
 <link rel="stylesheet" href="/static/css/pwa.css?v=1">
+<link rel="stylesheet" href="/static/css/topbar.css?v=1">
   <!-- Tema: aplicar ANTES de pintar para evitar flash -->
   <script src="/static/js/theme.js?v=2"></script>
 
@@ -63,6 +64,28 @@
       <span class="topbar-muni">{{ (branding.nombre_corto if branding else '') or 'electro' }}</span>
     </span>
     <div class="spacer"></div>
+    <div class="topbar-acciones">
+      {% if ctx.user | puede('padron', 'viviendas', 'crear') %}
+      <button type="button" class="btn--topbar" onclick="window.iniciarEmpadronar()" title="Empadronar vivienda">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-3M9 9v.01M9 12v.01M9 15v.01"/></svg>
+        <span class="btn--topbar-label">Empadronar</span>
+      </button>
+      {% endif %}
+      {% if ctx.user | puede('cobranza', 'pagos', 'cobrar') %}
+      <div class="topbar-cobrar">
+        <button type="button" class="btn--topbar" onclick="window.toggleBuscarCobrar()" title="Cobrar">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+          <span class="btn--topbar-label">Cobrar</span>
+        </button>
+        <div id="dropdown-cobrar" class="dropdown-cobrar hidden">
+          <input type="text" id="buscar-cobrar-input" autocomplete="off"
+                 placeholder="DNI, nombre o código…"
+                 oninput="window.buscarMoradorRapido(this.value)">
+          <div id="buscar-cobrar-resultados" class="dropdown-resultados"></div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
     <button class="btn-install-pwa" id="btn-install-pwa"
             type="button"
             onclick="window.electroInstallPWA()">
@@ -105,6 +128,11 @@
   <!-- PWA offline (03c): cobranza + version check -->
   <script src="/static/js/cobrar_offline.js?v=1" defer></script>
   <script src="/static/js/version_check.js?v=1" defer></script>
+
+  <!-- fix-19a: sesión de empadronamiento + topbar productivo + persistencia wizard -->
+  <script src="/static/js/sesion_empadronamiento.js?v=1" defer></script>
+  <script src="/static/js/topbar_buscar.js?v=1" defer></script>
+  <script src="/static/js/wizard_persistencia.js?v=1" defer></script>
 
   <script>
     // Detectar errores criticos de hyperscript que rompen scripts subsiguientes.
