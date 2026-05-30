@@ -275,9 +275,18 @@ async def dashboard(
         ]
         return _csv_response("dashboard_alcalde", headers, rows)
     if format == "pdf":
-        ctx = build_context(request, user=user, data=data, print_mode=True)
-        return await _render_pdf(
-            request, "tenant/reportes/dashboard_alcalde.html", ctx, "dashboard_alcalde",
+        # fix-19a: ReportLab (no HTML→fallback de texto). Reusa el `data` calculado.
+        from app.services.dashboard_export import generar_dashboard_pdf
+        pdf_bytes = generar_dashboard_pdf(data, request.session.get("branding") or {})
+        return Response(
+            content=pdf_bytes,
+            media_type="application/octet-stream",
+            headers={
+                "Content-Disposition": 'attachment; filename="dashboard_alcalde.pdf"; '
+                                       "filename*=UTF-8''dashboard_alcalde.pdf",
+                "X-Content-Type-Options": "nosniff",
+                "Cache-Control": "no-store",
+            },
         )
 
     return request.app.state.templates.TemplateResponse(

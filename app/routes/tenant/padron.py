@@ -13,10 +13,11 @@ matchea con /{codigo} y trata "nuevo" como un código de vivienda.
 """
 import json
 import logging
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy import text
 
 from app.context_processor import build_context
@@ -39,6 +40,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/app/padron")
 
 SESSION_KEY = "empadronamiento"
+SESION_KEY = "sesion_empadronamiento"  # zona reutilizable (comunidad+referente+fuente)
 MOTIVOS_BAJA = ["vendido", "malogrado", "autoreporte_morador", "correccion"]
 
 import re as _re
@@ -154,6 +156,126 @@ def _clear_wizard(request: Request) -> None:
     request.session.pop(SESSION_KEY, None)
 
 
+# ---------- Sesión de empadronamiento (zona reutilizable) ----------
+
+@router.post("/sesion/iniciar", dependencies=[Depends(verify_csrf)])
+async def sesion_iniciar(
+    request: Request,
+    user: CurrentUser = Depends(require_password_changed),
+    comunidad_id: int = Form(...),
+    referente_id: str = Form(""),
+    fuente_validacion: str = Form(...),
+):
+    if not user.puede("padron", "viviendas", "crear"):
+        raise HTTPException(403, "Sin permiso")
+    ref_id = int(referente_id) if referente_id.strip().isdigit() else None
+    async with tenant_session(user.tenant_schema) as ts:
+        com = (
+            await ts.execute(
+                text("SELECT id, nombre FROM comunidades WHERE id = :c AND activa = TRUE"),
+                {"c": comunidad_id},
+            )
+        ).mappings().first()
+        if not com:
+            return JSONResponse({"ok": False, "message": "Comunidad no válida."}, status_code=400)
+        ref_nombre = None
+        if ref_id:
+            ref = (
+                await ts.execute(
+                    text("SELECT id, nombre_completo FROM referentes WHERE id = :r AND activo = TRUE"),
+                    {"r": ref_id},
+                )
+            ).mappings().first()
+            ref_nombre = ref["nombre_completo"] if ref else None
+            if not ref:
+                ref_id = None
+    request.session[SESION_KEY] = {
+        "comunidad_id": comunidad_id,
+        "comunidad_nombre": com["nombre"],
+        "referente_id": ref_id,
+        "referente_nombre": ref_nombre,
+        "fuente_validacion": fuente_validacion.strip() or None,
+        "iniciada_at": datetime.now(timezone.utc).isoformat(),
+    }
+    # Empezar una vivienda nueva limpia bajo esta zona.
+    _clear_wizard(request)
+    return JSONResponse({"ok": True, "redirect": "/app/padron/nuevo/paso1"})
+
+
+@router.post("/sesion/cambiar", dependencies=[Depends(verify_csrf)])
+async def sesion_cambiar(
+    request: Request,
+    user: CurrentUser = Depends(require_password_changed),
+):
+    request.session.pop(SESION_KEY, None)
+    _clear_wizard(request)
+    return JSONResponse({"ok": True})
+
+
+@router.get("/sesion/info")
+async def sesion_info(
+    request: Request,
+    user: CurrentUser = Depends(require_password_changed),
+):
+    return JSONResponse(request.session.get(SESION_KEY) or {})
+
+
+@router.get("/sesion/modal", response_class=HTMLResponse)
+async def sesion_modal(
+    request: Request,
+    user: CurrentUser = Depends(require_password_changed),
+):
+    """Fragmento HTML del modal de sesión (con comunidades). Lo inyecta el topbar."""
+    if not user.puede("padron", "viviendas", "crear"):
+        raise HTTPException(403, "Sin permiso")
+    async with tenant_session(user.tenant_schema) as ts:
+        comunidades = (
+            await ts.execute(
+                text(
+                    "SELECT c.id, c.nombre, c.referente_principal_id, "
+                    "       r.nombre_completo AS referente_nombre "
+                    "FROM comunidades c "
+                    "LEFT JOIN referentes r ON r.id = c.referente_principal_id "
+                    "WHERE c.activa = TRUE ORDER BY c.nombre"
+                )
+            )
+        ).mappings().all()
+    return request.app.state.templates.TemplateResponse(
+        "tenant/padron/_modal_sesion_empadronamiento.html",
+        build_context(request, user=user, comunidades=[dict(c) for c in comunidades]),
+    )
+
+
+@router.get("/buscar-morador")
+async def buscar_morador(
+    request: Request,
+    user: CurrentUser = Depends(require_password_changed),
+    q: str = "",
+):
+    """Autocomplete del topbar Cobrar: por código de vivienda, DNI o nombre."""
+    q = (q or "").strip()
+    if len(q) < 3:
+        return JSONResponse({"resultados": []})
+    async with tenant_session(user.tenant_schema) as ts:
+        rows = (
+            await ts.execute(
+                text(
+                    "SELECT DISTINCT v.codigo_interno AS codigo, "
+                    "       m.nombre_completo AS nombre, m.dni "
+                    "FROM viviendas v "
+                    "LEFT JOIN moradores m ON m.vivienda_id = v.id "
+                    "  AND m.es_jefe_familia = TRUE AND m.activo = TRUE "
+                    "WHERE v.activa = TRUE AND v.anulada_at IS NULL "
+                    "  AND (v.codigo_interno ILIKE :q OR m.dni ILIKE :q "
+                    "       OR m.nombre_completo ILIKE :q) "
+                    "ORDER BY v.codigo_interno LIMIT 8"
+                ),
+                {"q": f"%{q}%"},
+            )
+        ).mappings().all()
+    return JSONResponse({"resultados": [dict(r) for r in rows]})
+
+
 @router.get("/nuevo", response_class=HTMLResponse)
 async def wizard_inicio(
     request: Request,
@@ -194,6 +316,7 @@ async def wizard_paso1_form(
             request, user=user,
             comunidades=comunidades, referentes=referentes,
             datos=w.get("datos", {}),
+            sesion=request.session.get(SESION_KEY),
         ),
     )
 
@@ -699,6 +822,54 @@ async def toggle_subvencion(
         "Subvención activada." if nuevo else "Subvención desactivada para esta vivienda.",
     )
     return RedirectResponse(f"/app/padron/{codigo}", status_code=303)
+
+
+# ---------- capturar/recapturar GPS desde la ficha ----------
+
+@router.post("/{codigo}/gps", dependencies=[Depends(verify_csrf)])
+async def actualizar_gps(
+    request: Request,
+    codigo: str,
+    user: CurrentUser = Depends(require_password_changed),
+    gps_lat: str = Form(""),
+    gps_lng: str = Form(""),
+    gps_precision: str = Form(""),
+):
+    if not user.puede("viviendas", "admin", "editar"):
+        raise HTTPException(403, "Sin permiso")
+    lat = gps_lat.strip() or None
+    lng = gps_lng.strip() or None
+    prec = int(gps_precision) if gps_precision.strip().isdigit() else None
+    if lat is None or lng is None:
+        return JSONResponse({"ok": False, "message": "Coordenadas inválidas."}, status_code=400)
+    async with tenant_session(user.tenant_schema) as ts:
+        viv = (
+            await ts.execute(
+                text("SELECT id, anulada_at FROM viviendas WHERE codigo_interno = :c"),
+                {"c": codigo},
+            )
+        ).mappings().first()
+        if not viv:
+            raise HTTPException(404, "Vivienda no encontrada")
+        if viv["anulada_at"] is not None:
+            return JSONResponse({"ok": False, "message": "Vivienda anulada."}, status_code=400)
+        await ts.execute(
+            text(
+                "UPDATE viviendas SET gps_lat = :lat, gps_lng = :lng, "
+                "gps_precision_metros = :prec WHERE id = :id"
+            ),
+            {"lat": lat, "lng": lng, "prec": prec, "id": viv["id"]},
+        )
+        await ts.execute(
+            text(
+                "INSERT INTO vivienda_eventos (vivienda_id, tipo, descripcion, user_id) "
+                "VALUES (:v, 'gps', :d, :u)"
+            ),
+            {"v": viv["id"], "d": f"GPS actualizado: {lat}, {lng}"
+                + (f" (± {prec} m)" if prec else ""), "u": user.user_id},
+        )
+        await ts.commit()
+    return JSONResponse({"ok": True, "lat": lat, "lng": lng, "precision": prec})
 
 
 # ---------- ficha (ruta dinámica /{codigo} — VA AL FINAL) ----------
